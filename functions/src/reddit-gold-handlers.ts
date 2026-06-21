@@ -1,4 +1,3 @@
-import "server-only";
 import * as admin from "firebase-admin";
 import { onRequest } from "firebase-functions/v2/https";
 import { db } from "./init";

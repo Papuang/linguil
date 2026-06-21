@@ -62,6 +62,7 @@
     "@types/stripe": "^8.0.416",
     "@vitejs/plugin-react": "^6.0.2",
     "autoprefixer": "^10.5.0",
+    "esbuild": "^0.28.0",
     "eslint": "^9.37.0",
     "eslint-config-google": "^0.14.0",
     "eslint-config-next": "^16.2.6",

@@ -1,4 +1,3 @@
-import "server-only";
 import * as admin from "firebase-admin";
 import { type UserRecord } from "firebase-admin/auth";
 import { onRequest } from "firebase-functions/v2/https";

@@ -22,7 +22,7 @@
   "devDependencies": {
     "@types/node-fetch": "^2.6.13",
     "@types/papaparse": "^5.5.2",
-    "firebase-tools": "^15.18.0",
+    "firebase-tools": "^15.22.0",
     "typescript": "^6.0.3"
   },
   "private": true

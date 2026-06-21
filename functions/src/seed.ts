@@ -1,4 +1,3 @@
-import "server-only";
 // Import necessary Firebase and Google Cloud modules.
 import { getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
