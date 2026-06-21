@@ -1,3 +1,4 @@
+import "server-only";
 import * as admin from "firebase-admin";
 import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { db } from "./init";

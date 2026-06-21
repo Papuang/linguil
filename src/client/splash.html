@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Linguil</title>
+  <link rel="stylesheet" href="./app/globals.css">
+</head>
+<body class="font-body antialiased">
+  <div class="flex flex-col min-h-screen">
+    <div class="grow flex flex-col items-center justify-center gap-6 text-center">
+      <header class="mb-2 flex justify-center">
+        <img
+          src="./logo.png"
+          alt="linguil logo"
+          width="240"
+          height="70"
+        />
+      </header>
+      <h1 class="sr-only">linguil | The daily language guessing game</h1>
+      <h2 class="text-xs italic -mb-1 -mt-6 text-center">The daily language guessing game</h2>
+      <button id="play-button" class="w-full max-w-xs bg-primary text-primary-foreground hover:bg-primary/90 text-xl h-14 rounded-md">
+        Play
+      </button>
+    </div>
+  </div>
+  <script type="module" src="./splash.js"></script>
+</body>
+</html>

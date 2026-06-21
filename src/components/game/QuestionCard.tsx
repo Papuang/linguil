@@ -109,7 +109,7 @@ const QuestionCard = memo<QuestionCardProps>(({
             {darkModeToggleSwitch}
           </div>
           {/* Displays the answer's correctness. */}
-          <div className="text-center flex-shrink min-w-0">
+          <div className="text-center shrink min-w-0">
             {resultText}
           </div>
           {/* Game mode toggle slot. */}

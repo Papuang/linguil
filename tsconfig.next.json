@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "exclude": [
+    "node_modules",
+    "functions",
+    "dist",
+    "scripts",
+    "schemas",
+    ".devvit",
+    "src/server",
+    "src/client",
+    "src/shared",
+    "devvit.json",
+    "vite.config.ts"
+  ]
+}

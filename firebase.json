@@ -11,6 +11,7 @@
       "codebase": "default",
       "predeploy": [
         "rm -rf functions/data && cp -r public/data functions/data",
+        "rm -rf src/shared/data && cp -r public/data src/shared/data",
         "npm --prefix \"$RESOURCE_DIR\" run build"
       ],
       "ignore": [

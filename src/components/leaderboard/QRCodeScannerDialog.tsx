@@ -10,7 +10,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
+import { VisuallyHidden } from '@/components/ui/visually-hidden';
 import type { QRCodeScannerRef } from './QRCodeScanner';
 
 // Dynamically import the QRCodeScanner component to lazy-load it.

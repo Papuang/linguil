@@ -1,3 +1,4 @@
+import "server-only";
 // Import necessary Firebase and Google Cloud modules.
 import { getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
@@ -10,12 +11,20 @@ import * as path from "path";
 import { CsvRow, parseCsvFile, findRowInCsv, parseWord, shuffleArray, getRandomItem } from "./utils";
 import { CsvParsingError, DataValidationError, TtsError } from "./error";
 
+const LANGUAGES_WITH_LATIN_SCRIPT_SUPPORT_ONLY = ["Amharic", "Vietnamese", "Javanese", "Tagalog", "Turkish", "Hungarian", "Hmong"];
+
 // Defines the structure for the cached language data.
 let languageDataCache: {
     families: CsvRow[];
     swadesh: CsvRow[];
+    regions: CsvRow[];
+    familyRegions: CsvRow[];
     familiesByLanguage: Map<string, CsvRow>;
     languagesByFamily: Map<string, string[]>;
+    regionsByLanguage: Map<string, string>;
+    languagesByRegion: Map<string, string[]>;
+    regionsByFamily: Map<string, string[]>;
+    familiesByRegion: Map<string, string[]>;
     allFamilies: string[];
     allEnglishWords: string[];
 } | null = null;
@@ -33,9 +42,11 @@ async function getCoreLanguageData() {
 
   try {
     // Concurrently parse the language families and Swadesh list CSVs for efficiency.
-    const [families, swadesh] = await Promise.all([
+    const [families, swadesh, regions, familyRegions] = await Promise.all([
       parseCsvFile(path.join(dataPath, "MultiLangFamilies.csv")),
       parseCsvFile(path.join(dataPath, "MultiLangSwadesh.csv")),
+      parseCsvFile(path.join(dataPath, "MultiLangRegions.csv")),
+      parseCsvFile(path.join(dataPath, "LangFamilyRegions.csv")),
     ]);
 
     // Create maps for efficient lookups: language name to family info, and family name to language list.
@@ -57,12 +68,47 @@ async function getCoreLanguageData() {
       }
     }
 
+    // Create maps for efficient lookups: language name to region, and region to language list.
+    const regionsByLanguage = new Map<string, string>();
+    const languagesByRegion = new Map<string, string[]>();
+
+    for (const region of regions) {
+      const lang = region.Language?.trim();
+      const reg = region.Region?.trim();
+      if (lang && reg) {
+        regionsByLanguage.set(lang, reg);
+        if (!languagesByRegion.has(reg)) {
+          languagesByRegion.set(reg, []);
+        }
+            languagesByRegion.get(reg)!.push(lang);
+      }
+    }
+
+    const regionsByFamily = new Map<string, string[]>();
+    const familiesByRegion = new Map<string, string[]>();
+
+    for (const familyRegion of familyRegions) {
+      const fam = familyRegion.Language_Family?.trim();
+      const reg = familyRegion.Region?.trim();
+      if (fam && reg) {
+        if (!regionsByFamily.has(fam)) {
+          regionsByFamily.set(fam, []);
+        }
+            regionsByFamily.get(fam)!.push(reg);
+
+            if (!familiesByRegion.has(reg)) {
+              familiesByRegion.set(reg, []);
+            }
+            familiesByRegion.get(reg)!.push(fam);
+      }
+    }
+
     // Create convenient arrays of all unique family names and English words.
     const allFamilies = [...languagesByFamily.keys()];
     const allEnglishWords = [...new Set(swadesh.map(s => s.English_Word).filter(Boolean))];
 
     // Store the processed data in the cache.
-    languageDataCache = { families, swadesh, familiesByLanguage, languagesByFamily, allFamilies, allEnglishWords };
+    languageDataCache = { families, swadesh, regions, familyRegions, familiesByLanguage, languagesByFamily, allFamilies, allEnglishWords, regionsByLanguage, languagesByRegion, regionsByFamily, familiesByRegion };
     logger.info("Successfully parsed and cached language data");
     return languageDataCache;
   } catch (error) {
@@ -93,7 +139,7 @@ export const seedDailyWord = onSchedule(
 
     try {
       // Load the necessary language data, using the cache if available.
-      const { swadesh, familiesByLanguage, languagesByFamily, allFamilies, allEnglishWords } = await getCoreLanguageData();
+      const { swadesh, familiesByLanguage, languagesByFamily, allFamilies, allEnglishWords, regionsByLanguage, languagesByRegion, familiesByRegion } = await getCoreLanguageData();
       if (!swadesh?.length) {
         throw new DataValidationError("CRITICAL: Swadesh data source is empty or failed to load");
       }
@@ -129,6 +175,11 @@ export const seedDailyWord = onSchedule(
       }
       const { Language_Family: languageFamily } = langInfo;
 
+      const languageRegion = regionsByLanguage.get(languageName);
+      const sameRegionFamilies = languageRegion ? familiesByRegion.get(languageRegion) || [] : [];
+      const sameRegionLanguages = languageRegion ? languagesByRegion.get(languageRegion) || [] : [];
+
+
       // Find the language code and TTS voice info from the language codes CSV.
       const codeInfo = await findRowInCsv(path.join(dataPath, "LanguageCodes.csv"), c => !!c.Language && c.Language.trim() === languageName.trim());
       if (!codeInfo || !codeInfo.langCode) {
@@ -140,7 +191,8 @@ export const seedDailyWord = onSchedule(
       let audioUrl = null;
       if (parsedWord.nativeScript && googleTtsVoice) {
         try {
-          const ttsRequest = { input: { text: parsedWord.nativeScript }, voice: { name: googleTtsVoice, languageCode: langCode }, audioConfig: { audioEncoding: "MP3" as const } };
+          const textToSynthesize = LANGUAGES_WITH_LATIN_SCRIPT_SUPPORT_ONLY.includes(languageName) ? parsedWord.transliteration : parsedWord.nativeScript;
+          const ttsRequest = { input: { text: textToSynthesize }, voice: { name: googleTtsVoice, languageCode: langCode }, audioConfig: { audioEncoding: "MP3" as const } };
           const [ttsResponse] = await ttsClient.synthesizeSpeech(ttsRequest);
           if (ttsResponse.audioContent) {
             const bucket = getStorage().bucket();
@@ -150,7 +202,7 @@ export const seedDailyWord = onSchedule(
             audioUrl = file.publicUrl(); // Get the public URL of the saved audio file.
             logger.info(`Successfully stored TTS audio at ${audioUrl}`);
           } else {
-            throw new TtsError(`TTS response for "${parsedWord.nativeScript}" did not contain audio content`);
+            throw new TtsError(`TTS response for "${textToSynthesize}" did not contain audio content`);
           }
         } catch (ttsError) {
           // Wrap TTS errors in a custom error type for better diagnostics.
@@ -159,23 +211,31 @@ export const seedDailyWord = onSchedule(
       } else { logger.warn(`Skipping TTS generation: nativeScript: "${parsedWord.nativeScript}", googleTtsVoice: "${googleTtsVoice}"`); }
 
       // Generate distractor options for the language family quiz.
-      const familyDistractors = shuffleArray(allFamilies.filter(f => f !== languageFamily), seed + 2).slice(0, 3);
+      const familyDistractors = shuffleArray(
+        [...new Set(sameRegionFamilies.filter(f => f !== languageFamily))]
+          .concat([...new Set(allFamilies.filter(f => f !== languageFamily))])
+        , seed + 2).slice(0, 3);
 
       // Identify other languages that use the exact same word string.
       const duplicateWordLangs = Object.keys(row).filter(key => key !== "English_Word" && row[key] === rawWord).map(key => key.replace(/_/g, " "));
       // Get other languages from the same family.
       const sameFamilyLangs = languagesByFamily.get(languageFamily) || [];
       // Create distractors from the same family, excluding languages with the same word.
-      const sameFamilyDistractors = sameFamilyLangs.filter(lang => !duplicateWordLangs.includes(lang));
+      const sameFamilyDistractors = sameFamilyLangs.filter(lang => !duplicateWordLangs.includes(lang) && lang !== languageName);
+      // Create distractors from the same region, excluding languages with the same word.
+      const sameRegionDistractors = sameRegionLanguages.filter(lang => !duplicateWordLangs.includes(lang) && lang !== languageName);
 
       // Create distractors from other families, excluding languages with the same word.
       const otherFamilyDistractors = allFamilies
         .filter(fam => fam !== languageFamily)
         .flatMap(fam => languagesByFamily.get(fam) || [])
-        .filter(lang => !duplicateWordLangs.includes(lang));
+        .filter(lang => !duplicateWordLangs.includes(lang) && lang !== languageName);
 
       // Combine and shuffle same-family and other-family distractors for the language quiz.
-      const langDistractors = shuffleArray([...new Set(sameFamilyDistractors)], seed + 3)
+      const langDistractors = shuffleArray(
+        [...new Set(sameFamilyDistractors)]
+          .concat([...new Set(sameRegionDistractors)])
+        , seed + 3)
         .concat(shuffleArray([...new Set(otherFamilyDistractors)], seed + 3.1))
         .slice(0, 3);
 

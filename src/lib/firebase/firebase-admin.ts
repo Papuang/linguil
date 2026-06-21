@@ -18,12 +18,6 @@ const initializeFirebaseAdmin = (): Promise<void> => {
     return adminInitializationPromise;
 };
 
-// Gets the Firebase Admin Auth service.
-export const getAdminAuth = async (): Promise<admin.auth.Auth> => {
-    await initializeFirebaseAdmin();
-    return admin.auth();
-};
-
 // Gets the Firebase Admin Firestore service.
 export const getAdminDb = async (): Promise<admin.firestore.Firestore> => {
     await initializeFirebaseAdmin();

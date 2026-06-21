@@ -1,3 +1,4 @@
+import 'server-only';
 // Handles the entire Discord authentication process.
 import { NextRequest, NextResponse } from 'next/server';
 import * as admin from "firebase-admin";
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest) {
     // The redirect_uri is only required for the standard browser OAuth flow.
     // For the Discord client flow, it should be omitted.
     if (!isFromDiscordClient) {
-      tokenRequestBody.redirect_uri = process.env.DISCORD_REDIRECT_URI!;
+      tokenRequestBody.redirect_uri = process.env.NEXT_PUBLIC_DISCORD_REDIRECT_URI!;
     }
 
     const tokenResponse = await fetch('https://discord.com/api/oauth2/token', {
@@ -107,8 +108,7 @@ export async function POST(req: NextRequest) {
         const exchangeResponse = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=${apiKey}`, {
           method: 'POST',
           headers: { 
-            'Content-Type': 'application/json',
-            'Referer': 'https://linguil.app/' 
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({ token: customToken, returnSecureToken: true }),
         });

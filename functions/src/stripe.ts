@@ -6,14 +6,14 @@ import { defineSecret } from "firebase-functions/params";
 const stripeSecretKey = defineSecret("STRIPE_SECRET_KEY");
 
 // Declare a variable to hold the Stripe client instance.
-let stripe: Stripe;
+let stripe: Stripe.Stripe;
 
 // Function to get a singleton instance of the Stripe client.
 export const getStripe = () => {
   // If the Stripe client has not been initialized yet, create a new instance.
   if (!stripe) {
     stripe = new Stripe(stripeSecretKey.value(), {
-      apiVersion: "2025-09-30.clover", // Specify the Stripe API version.
+      apiVersion: "2026-04-22.dahlia", // Specify the Stripe API version.
       typescript: true, // Enable TypeScript support.
     });
   }

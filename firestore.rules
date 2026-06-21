@@ -46,5 +46,12 @@ service cloud.firestore {
       // Users cannot delete their public profiles from the client.
       allow delete: if false;
     }
+
+    // Allows public read for polling, but write access is restricted by a secret.
+    match /_auth_sessions/{sessionId} {
+        allow read: if true;
+        allow create, update: if request.resource.data.writeSecret == '182a578c735d496a843aa58267258a3e0b8a3c5d7f0e9a1b3c5d7f0e9a1b3c5d';
+        allow delete: if false;
+    }
   }
 }

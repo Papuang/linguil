@@ -24,6 +24,7 @@ const cspPolicies = {
     "'self'",
     'https://discord.com',
     'https://*.discord.com',
+    'https://*.discordsays.com',
     'https://*.firebaseio.com',
     'wss://*.firebaseio.com',
     'https://*.googleapis.com',
@@ -65,7 +66,7 @@ const cspPolicies = {
     'https://*.linguil.app'
   ],
   // Specifies the valid parents that may embed a page using <frame> or <iframe>.
-  'frame-ancestors': ["'self'", 'https://discord.com', 'https://*.discord.com'],
+  'frame-ancestors': ["'self'", 'https://discord.com', 'https://*.discord.com', 'https://*.reddit.com'],
 };
 
 // Constructs a Content-Security-Policy string from a policy object.
@@ -79,6 +80,12 @@ const cspHeader = buildCsp(cspPolicies);
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  typescript: {
+    // Custom tsconfig.json file for the Next.js build.
+    tsconfigPath: './tsconfig.next.json',
+  },
+  turbopack: {},
+  allowedDevOrigins: ['*.cloudworkstations.dev', '9000-firebase-studio-1755218936202.cluster-fbfjltn375c6wqxlhoehbz44sk.cloudworkstations.dev'],
   // Optimizes images to modern formats like AVIF and WebP.
   images: {
     formats: ['image/avif', 'image/webp'],
@@ -132,16 +139,6 @@ const nextConfig = {
         ],
       },
     ];
-  },
-
-  // Customizes the Webpack configuration.
-  webpack: (config, { isServer }) => {
-    // Excludes server-side packages from the client-side bundle.
-    if (!isServer) {
-      config.externals.push('firebase-admin');
-    }
-
-    return config;
   },
 };
 

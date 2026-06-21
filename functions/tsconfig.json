@@ -10,6 +10,8 @@
     "noImplicitReturns": true,
     // Specifies the output directory for compiled files.
     "outDir": "lib",
+    // Specifies the root directory of input files. 
+    "rootDir": "src",
     // Generates source maps for debugging.
     "sourceMap": true,
     // Enables all strict type-checking options.

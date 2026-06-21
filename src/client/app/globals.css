@@ -1,0 +1,186 @@
+@import "tailwindcss";
+@plugin "tailwindcss-animate";
+
+/* 1. Use @theme to generate utility classes (replaces tailwind.config.js). */
+@theme {
+  /* Automatically generates `.font-body` and `.font-mono` utilities */
+  --font-body: 'PT Sans', sans-serif;
+  --font-mono: 'Source Code Pro', monospace;
+
+  /* Map HSL variables */
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-friend-box: hsl(var(--friend-box));
+  --color-friend-box-foreground: hsl(var(--friend-box-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-correct: hsl(var(--correct));
+  --color-correct-foreground: hsl(var(--correct-foreground));
+  --color-border: hsl(var(--border));
+  --radius: var(--radius);
+
+  /* Map custom animations */
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+  --animate-fade-in-up: fade-in-up 0.5s ease-out forwards;
+  --animate-slide-in-from-right: slide-in-from-right 0.3s ease-out forwards;
+  --animate-slide-out-to-left: slide-out-to-left 0.3s ease-out forwards;
+
+  /* Define keyframes */
+  @keyframes accordion-down {
+    from { height: 0; }
+    to { height: var(--radix-accordion-content-height); }
+  }
+  @keyframes accordion-up {
+    from { height: var(--radix-accordion-content-height); }
+    to { height: 0; }
+  }
+  @keyframes fade-in-up {
+    0% { opacity: 0; transform: translateY(20px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes slide-in-from-right {
+    0% { transform: translateX(100%); opacity: 0; }
+    100% { transform: translateX(0); opacity: 1; }
+  }
+  @keyframes slide-out-to-left {
+    0% { transform: translateX(0); opacity: 1; }
+    100% { transform: translateX(-100%); opacity: 0; }
+  }
+}
+
+/* 2. Top-level @font-face declarations. */
+@font-face {
+  font-family: 'PT Sans';
+  src: url('/fonts/PTSans-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'PT Sans';
+  src: url('/fonts/PTSans-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'PT Sans';
+  src: url('/fonts/PTSans-Italic.ttf') format('truetype');
+  font-weight: 400;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: 'PT Sans';
+  src: url('/fonts/PTSans-BoldItalic.ttf') format('truetype');
+  font-weight: 700;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: 'Source Code Pro';
+  src: url('/fonts/SourceCodePro-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Source Code Pro';
+  src: url('/fonts/SourceCodePro-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+}
+
+/* 3. Base Layer */
+@layer base {
+  /* Preflight defaults */
+  button:not([disabled]),
+  [role="button"]:not([disabled]) {
+    cursor: pointer;
+  }
+  
+  *, ::before, ::after {
+    border-color: var(--color-border);
+  }
+
+  /* Stabilize the scrollbar to prevent layout shifts. */
+  html {
+    scrollbar-gutter: stable;
+  }
+
+  /* Define CSS variables for the light theme. */
+  :root {
+    --background: 40 50% 96%; /* Light Beige */
+    --foreground: 27 20% 15%; /* Dark Brown */
+    --card: 0 0% 100%; /* White */
+    --card-foreground: 27 20% 15%; /* Dark Brown */
+    --popover: 60 25% 94%; /* Light Yellowish Gray */
+    --popover-foreground: 27 20% 15%; /* Dark Brown */
+    --primary: 26 80% 67%; /* Warm Orange */
+    --primary-foreground: 26 80% 10%; /* Dark Orange */
+    --secondary: 48 20% 88%; /* Light Grayish Yellow */
+    --secondary-foreground: 27 20% 15%; /* Dark Brown */
+    --muted: 30 95% 85%; /* Light Orange */
+    --muted-foreground: 27 20% 35%; /* Grayish Brown */
+    --friend-box: 31 87% 91%; /* Very Light Orange */
+    --friend-box-foreground: 27 20% 35%; /* Grayish Brown */
+    --destructive: 0 84.2% 60.2%; /* Bright Red */
+    --destructive-foreground: 27 20% 15%; /* Dark Brown */
+    --correct: 120 70% 40%; /* Green */
+    --correct-foreground: 27 20% 15%; /* Dark Brown */
+    --border: 48 20% 83%; /* Light Grayish Yellow */
+    --chart-1: 12 76% 61%; /* Orange-Red */
+    --chart-2: 173 58% 39%; /* Teal */
+    --chart-3: 197 37% 24%; /* Dark Blue */
+    --chart-4: 43 74% 66%; /* Yellow-Orange */
+    --chart-5: 27 87% 67%; /* Orange */
+    --radius: 0.5rem;
+  }
+
+  /* Define CSS variables for the dark theme. */
+  .dark {
+    --background: 27 10% 10%; /* Very Dark Brown */
+    --foreground: 60 56% 91%; /* Light Yellowish Gray */
+    --card: 27 10% 12%; /* Very Dark Brown */
+    --card-foreground: 60 56% 91%; /* Light Yellowish Gray */
+    --popover: 27 10% 12%; /* Very Dark Brown */
+    --popover-foreground: 60 56% 91%; /* Light Yellowish Gray */
+    --primary: 26 80% 67%; /* Warm Orange */
+    --primary-foreground: 26 80% 10%; /* Dark Orange */
+    --secondary: 48 20% 88%; /* Light Grayish Yellow */
+    --secondary-foreground: 27 20% 15%; /* Dark Brown */
+    --muted: 30 95% 85%; /* Light Orange */
+    --muted-foreground: 27 20% 35%; /* Grayish Brown */
+    --friend-box: 31 87% 91%; /* Very Light Orange */
+    --friend-box-foreground: 27 20% 35%; /* Grayish Brown */
+    --destructive: 0 84.2% 60.2%; /* Bright Red */
+    --destructive-foreground: 60 56% 91%; /* Light Yellowish Gray */
+    --correct: 120 70% 40%; /* Green */
+    --correct-foreground: 60 56% 91%; /* Light Yellowish Gray */
+    --border: 48 20% 83%; /* Light Grayish Yellow */
+    --chart-1: 12 76% 61%; /* Orange-Red */
+    --chart-2: 173 58% 39%; /* Teal */
+    --chart-3: 197 37% 24%; /* Dark Blue */
+    --chart-4: 43 74% 66%; /* Yellow-Orange */
+    --chart-5: 27 87% 67%; /* Orange */
+    --radius: 0.5rem;
+  }
+  
+  /* Apply the base background and foreground colors to the body. */
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: var(--font-body);
+  }
+}

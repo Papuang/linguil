@@ -1,0 +1,34 @@
+{
+  "fields": [
+    {
+      "name": "createdAt",
+      "type": "timestamp",
+      "description": "The date/time of purchase (in UTC)."
+    , "fields": []
+    },
+    {
+      "name": "amount",
+      "type": "number",
+      "description": "The transaction amount (in the smallest currency unit, e.g. pence)."
+    , "fields": []
+    },
+    {
+      "name": "firebaseUID",
+      "type": "string",
+      "description": "The purchaser's unique user ID."
+    , "fields": []
+    },
+    {
+      "name": "customerEmail",
+      "type": "string",
+      "description": "The purchaser's email address."
+    , "fields": []
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "description": "The ISO currency code (e.g. USD, GBP, EUR) for the transaction."
+    , "fields": []
+    }
+  ]
+}

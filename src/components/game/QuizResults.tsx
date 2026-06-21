@@ -45,7 +45,7 @@ const LanguageStatsDisplay = memo(({ languageStats, word }: { languageStats: Lan
       <div className="text-center bg-muted p-2 rounded-lg text-[10px] text-muted-foreground flex-1 flex flex-col justify-center order-1 md:order-1">
         <p><b>{word.language}</b> is spoken by <b>{languageStats.totalSpeakers}</b> people</p>
       </div>
-      <CardTitle className="font-headline text-lg text-muted-foreground dark:text-foreground italic flex-shrink-0 px-4 flex items-center justify-center order-3 md:order-2 w-full md:w-auto">
+      <CardTitle className="font-headline text-lg text-muted-foreground dark:text-foreground italic shrink-0 px-4 flex items-center justify-center order-3 md:order-2 w-full md:w-auto">
         ({word.family}, {word.language})
       </CardTitle>
       <div className="text-center bg-muted p-2 rounded-lg text-[10px] text-muted-foreground flex-1 flex flex-col justify-center order-2 md:order-3">
@@ -103,7 +103,7 @@ const ScoreDisplay = memo(({ score, totalQuestions }: { score: number, totalQues
   }, []);
 
   return (
-    <div className="flex-shrink-0 w-full" ref={containerRef}>
+    <div className="shrink-0 w-full" ref={containerRef}>
       <p className="font-headline text-3xl font-bold mb-2 dark:text-white">
         You scored {score}/{totalQuestions}
       </p>

@@ -1,9 +1,9 @@
+import "server-only";
 import * as admin from "firebase-admin";
 import { onRequest } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import { db } from "./init";
 import { getStripe } from "./stripe";
-import Stripe from "stripe";
 
 // Define a secret for the Stripe webhook.
 const stripeWebhookSecret = defineSecret("STRIPE_WEBHOOK_SECRET");
@@ -90,7 +90,7 @@ export const stripeWebhook = onRequest({ region: "us-central1", secrets: ["STRIP
   const signature = req.headers["stripe-signature"];
   const secret = stripeWebhookSecret.value();
 
-  let event: Stripe.Event;
+  let event: ReturnType<typeof stripe.webhooks.constructEvent>;
   try {
     // Verify the webhook signature to ensure the request is from Stripe.
     event = stripe.webhooks.constructEvent(req.rawBody, signature as string, secret);
@@ -102,7 +102,7 @@ export const stripeWebhook = onRequest({ region: "us-central1", secrets: ["STRIP
 
   // Handle the 'checkout.session.completed' event.
   if (event.type === "checkout.session.completed") {
-    const session = event.data.object as Stripe.Checkout.Session;
+    const session = event.data.object as Awaited<ReturnType<typeof stripe.checkout.sessions.create>>;
     const uid = session.metadata?.firebaseUID;
 
     // If the Firebase UID is missing from metadata, return an error.
@@ -116,6 +116,18 @@ export const stripeWebhook = onRequest({ region: "us-central1", secrets: ["STRIP
       await admin.auth().setCustomUserClaims(uid, { hasPaid: true });
       // Update the user's document in Firestore to reflect their payment status.
       await db.collection("users").doc(uid).set({ hasPaid: true }, { merge: true });
+
+      // Log the purchase to the 'stripe_metrics' collection.
+      const metricsRef = db.collection("stripe_metrics").doc(uid);
+      await metricsRef.set({
+        amount: session.amount_total,
+        currency: session.currency,
+        customerEmail: session.customer_details?.email || "anonymous",
+        firebaseUID: uid,
+        createdAt: admin.firestore.Timestamp.fromMillis(session.created * 1000)
+      }, { merge: true });
+
+      console.log(`Successfully processed purchase for user ${uid}.`);
 
       // Send a success response.
       res.status(200).send({ received: true });

@@ -138,7 +138,7 @@ export default async function RootLayout({
         <Providers>
           <ConditionalHeader />
           {/* Define the main content area with a fallback loading spinner. */}
-          <main className="w-full max-w-2xl mx-auto flex flex-col justify-start flex-grow">
+          <main className="w-full max-w-2xl mx-auto flex flex-col justify-start grow">
             <Suspense fallback={<GlobalLoadingSpinner />}>
               {children}
             </Suspense>

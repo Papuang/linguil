@@ -1,6 +1,5 @@
 {
   "compilerOptions": {
-    "baseUrl": ".",
     // Specifies the built-in libraries available to the compiler.
     "lib": [
       "dom",
@@ -26,7 +25,7 @@
     // Ensures that each file can be safely transpiled without relying on other imports.
     "isolatedModules": true,
     // Preserves JSX syntax in the output for a JSX transformer to process.
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     // Enables incremental compilation.
     "incremental": true,
     // Specifies compiler plugins to load.
@@ -56,14 +55,28 @@
   "include": [
     "next-env.d.ts",
     "types/recharts.d.ts",
-    "src/**/*.ts",
-    "src/**/*.tsx",
+    "src/app/**/*.ts",
+    "src/app/**/*.tsx",
+    "src/components/**/*.ts",
+    "src/components/**/*.tsx",
+    "src/hooks/**/*.ts",
+    "src/hooks/**/*.tsx",
+    "src/lib/**/*.ts",
+    "src/lib/**/*.tsx",
     ".next/types/**/*.ts",
-    "tailwind.config.ts"
+    "tailwind.config.ts",
+    "vite.config.ts",
+    ".next/dev/types/**/*.ts",
+    "src/shared/types/**/*.ts",
+    "src/shared/types/**/*.d.ts"
   ],
   // Specifies the files and folders to be excluded from the compilation.
   "exclude": [
     "node_modules",
-    "functions"
+    "functions",
+    "dist",
+    "scripts",
+    "schemas",
+    ".devvit",
   ]
 }

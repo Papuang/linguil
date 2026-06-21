@@ -182,6 +182,12 @@ client.on('messageCreate', async (message) => {
   
   if (match) {
     const score = parseInt(match[1], 10);
+
+    // Scores must be 0, 1, 2, or 3.
+    if (score < 0 || score > 3) {
+      return;
+    }
+    
     const total = parseInt(match[2], 10);
     const bear = match[3].trim();
 
@@ -190,20 +196,22 @@ client.on('messageCreate', async (message) => {
       guildScores.set(message.guildId, new Map());
     }
 
-    // Store the user's latest score for this server.
+    // Store the user's first score of the day for this server.
     const serverMap = guildScores.get(message.guildId);
-    serverMap.set(message.author.id, {
-      userId: message.author.id,
-      username: message.author.displayName || message.author.username,
-      score: score,
-      total: total,
-      bear: bear
-    });
+    if (!serverMap.has(message.author.id)) {
+      serverMap.set(message.author.id, {
+        userId: message.author.id,
+        username: message.author.displayName || message.author.username,
+        score: score,
+        total: total,
+        bear: bear
+      });
 
-    try {
-      await message.react('🐻'); 
-    } catch (err) {
-      console.error("Failed to react. Ensure bot has 'Add Reactions' permission.");
+      try {
+        await message.react('🐻'); 
+      } catch (err) {
+        console.error("Failed to react. Ensure bot has 'Add Reactions' permission.");
+      }
     }
   }
 });

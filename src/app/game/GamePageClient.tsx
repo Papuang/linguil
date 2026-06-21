@@ -171,7 +171,7 @@ const GameFlow = ({ initialDailyWord }: { initialDailyWord: RawDailyData | null 
       <div className="relative z-20 flex justify-end">
         <AuthButton />
       </div>
-      <div className="overflow-x-hidden flex-grow min-h-0">
+      <div className="overflow-x-hidden grow min-h-0">
         {content}
       </div>
     </div>

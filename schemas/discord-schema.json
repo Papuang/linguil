@@ -1,0 +1,18 @@
+{
+  "fields": [
+    {
+      "name": "serverCount",
+      "type": "number",
+      "description": "The total number of Discord servers that have installed linguil."
+    ,
+      "fields": []
+    },
+    {
+      "name": "createdAt",
+      "type": "timestamp",
+      "description": "The timestamp of the serverCount (in UTC)."
+    ,
+      "fields": []
+    }
+  ]
+}

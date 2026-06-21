@@ -1,6 +1,6 @@
 'use client';
 
-import { forwardRef, type ComponentPropsWithoutRef, type ElementRef } from 'react';
+import { forwardRef, type ComponentPropsWithoutRef, type ElementRef, useState, useEffect } from 'react';
 import * as AvatarPrimitive from '@radix-ui/react-avatar';
 import { useAuth } from '@/hooks/use-auth';
 import { cn, getProxiedImageUrl } from '@/lib/utils';
@@ -25,12 +25,31 @@ const AvatarImage = forwardRef<
   ComponentPropsWithoutRef<typeof AvatarPrimitive.Image>
 >(({ className, src, ...props }, ref) => {
   const { isInsideDiscord } = useAuth();
-  const proxiedSrc = getProxiedImageUrl(src, isInsideDiscord);
+  const [displaySrc, setDisplaySrc] = useState<string | undefined>();
+
+  useEffect(() => {
+    let objectUrl: string | undefined;
+
+    if (src instanceof Blob) {
+      objectUrl = URL.createObjectURL(src);
+      setDisplaySrc(objectUrl);
+    } else if (typeof src === 'string') {
+      setDisplaySrc(getProxiedImageUrl(src, isInsideDiscord) || undefined);
+    } else {
+      setDisplaySrc(undefined);
+    }
+
+    return () => {
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [src, isInsideDiscord]);
 
   return (
     <AvatarPrimitive.Image
       ref={ref}
-      src={proxiedSrc || undefined}
+      src={displaySrc}
       className={cn('aspect-square h-full w-full', className)}
       {...props}
     />

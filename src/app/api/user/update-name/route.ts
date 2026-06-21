@@ -1,3 +1,4 @@
+import 'server-only';
 import { NextRequest, NextResponse } from 'next/server';
 import * as admin from 'firebase-admin';
 import { authenticateRequest } from '@/lib/api/auth-utils';

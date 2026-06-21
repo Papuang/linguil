@@ -3,7 +3,7 @@ import tailwindcssAnimate from 'tailwindcss-animate';
 
 export default {
   // Toggles dark mode based on a class.
-  darkMode: ['class'],
+  darkMode: 'class',
   // Configures files to scan for Tailwind classes.
   content: [
     './src/**/*.{js,ts,jsx,tsx,mdx}',
@@ -13,9 +13,9 @@ export default {
     extend: {
       // Sets custom font families.
       fontFamily: {
-        body: ['var(--font-pt-sans)', 'sans-serif'],
-        headline: ['var(--font-pt-sans)', 'sans-serif'],
-        code: ['var(--font-source-code-pro)', 'monospace'],
+        body: ['PT Sans', 'sans-serif'],
+        headline: ['PT Sans', 'sans-serif'],
+        code: ['Source Code Pro', 'monospace'],
       },
       // Defines a custom color palette.
       colors: {

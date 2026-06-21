@@ -1,0 +1,53 @@
+{
+  "fields": [
+    {
+      "name": "displayName",
+      "type": "string",
+      "description": "The user's public display name (modifiable)."
+    , "fields": []
+    },
+    {
+      "name": "photoURL",
+      "type": "string",
+      "description": "The user's profile picture URL (null if default)."
+    , "fields": []
+    },
+    {
+      "name": "friendCode",
+      "type": "string",
+      "description": "The user's unique friend ID."
+    , "fields": []
+    },
+    {
+      "name": "createdAt",
+      "type": "timestamp",
+      "description": "The user's profile creation timestamp (in UTC)."
+    , "fields": []
+    },
+    {
+      "name": "scores",
+      "type": "map",
+      "description": "The user's game performance stats.",
+      "fields": [
+        {
+          "name": "totalCorrect",
+          "type": "number",
+          "description": "The user's total number of correct answers (null if none)."
+        , "fields": []
+        },
+        {
+          "name": "perfectScores",
+          "type": "number",
+          "description": "The user's total number of 3/3 scores (null if none)."
+        , "fields": []
+        },
+        {
+          "name": "totalAnswered",
+          "type": "number",
+          "description": "The user's total number of questions answered (null if none)."
+        , "fields": []
+        }
+      ]
+    }
+  ]
+}

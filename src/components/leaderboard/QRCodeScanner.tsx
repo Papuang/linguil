@@ -13,7 +13,7 @@ type QRCodeScannerProps = {
   // Callback on successful QR code scan.
   onScanSuccess: (decodedText: string) => void;
   // Ref to the hidden file input.
-  fileInputRef: React.RefObject<HTMLInputElement>;
+  fileInputRef: React.Ref<HTMLInputElement>;
 };
 
 // Methods exposed by the QRCodeScanner component ref.
@@ -106,7 +106,9 @@ const QRCodeScanner = memo(forwardRef<QRCodeScannerRef, QRCodeScannerProps>(({ o
 
   // Programmatically clicks the hidden file input.
   const handleFileSelect = () => {
-    fileInputRef.current?.click();
+    if (fileInputRef && 'current' in fileInputRef) {
+        fileInputRef.current?.click();
+    }
   };
 
   // Handles file input change for scanning QR from an image.

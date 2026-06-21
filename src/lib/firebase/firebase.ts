@@ -1,7 +1,10 @@
 import { initializeApp, getApp, getApps, type FirebaseApp, type FirebaseOptions } from 'firebase/app';
 
+// Define the keys backed by environment variables.
+type EnvBackedFirebaseKeys = keyof Omit<FirebaseOptions, 'databaseURL' | 'recaptchaSiteKey'>;
+
 // Maps config keys to environment variables for clearer error messages.
-const ENV_VAR_MAP: Record<keyof Omit<FirebaseOptions, 'databaseURL'>, string> = {
+const ENV_VAR_MAP: Record<EnvBackedFirebaseKeys, string> = {
   apiKey: 'NEXT_PUBLIC_FIREBASE_API_KEY',
   authDomain: 'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN',
   projectId: 'NEXT_PUBLIC_FIREBASE_PROJECT_ID',
@@ -23,11 +26,12 @@ function getFirebaseConfig(): FirebaseOptions {
     messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
     appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
     measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
+    recaptchaSiteKey: '',
   };
 
   // Ensure all required environment variables are present.
   for (const key in ENV_VAR_MAP) {
-    const configKey = key as keyof Omit<FirebaseOptions, 'databaseURL'>;
+    const configKey = key as EnvBackedFirebaseKeys;
     if (!config[configKey]) {
       const envVarName = ENV_VAR_MAP[configKey];
       if (isProduction && configKey === 'authDomain') continue;

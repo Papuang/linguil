@@ -33,8 +33,8 @@ type AddFriendCardProps = {
 const YourIdSection = memo(({ userId, onCopy }: { userId: string, onCopy: () => void }) => (
   <div className="flex items-stretch gap-2 h-9">
     <p className="text-xs p-1 bg-muted text-friend-box-foreground rounded-md flex items-center">Your ID:</p>
-    <span className="text-xs md:text-sm font-mono p-1 bg-background rounded-md flex items-center justify-center flex-grow">{userId}</span>
-    <Button onClick={onCopy} size="icon" variant="default" className="h-full w-9 flex-shrink-0" aria-label="Copy your user ID">
+    <span className="text-xs md:text-sm font-mono p-1 bg-background rounded-md flex items-center justify-center grow">{userId}</span>
+    <Button onClick={onCopy} size="icon" variant="default" className="h-full w-9 shrink-0" aria-label="Copy your user ID">
       <Clipboard className="h-4 w-4" />
     </Button>
   </div>
@@ -95,7 +95,7 @@ const AddFriendCard = memo<AddFriendCardProps>(({ friendUid, onFriendUidChange, 
             <div className="flex flex-col gap-4">
               <p className='text-start font-bold text-friend-box-foreground'>Add your friends</p>
               <div className="flex flex-row gap-2">
-                <div className="flex flex-col flex-grow gap-2">
+                <div className="flex flex-col grow gap-2">
                   <Label htmlFor="friendUid-desktop" className="sr-only">Enter your friend&apos;s ID</Label>
                   <Input
                     id="friendUid-desktop"
@@ -129,9 +129,9 @@ const AddFriendCard = memo<AddFriendCardProps>(({ friendUid, onFriendUidChange, 
                     placeholder="Enter your friend's ID"
                     value={friendUid}
                     onChange={(e) => onFriendUidChange(e.target.value)}
-                    className="h-9 italic flex-grow"
+                    className="h-9 italic grow"
                 />
-                <Button onClick={onCopy} size="icon" variant="default" className="h-9 w-9 flex-shrink-0" aria-label="Copy your user ID">
+                <Button onClick={onCopy} size="icon" variant="default" className="h-9 w-9 shrink-0" aria-label="Copy your user ID">
                     <Clipboard className="h-4 w-4" />
                 </Button>
             </div>

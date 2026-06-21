@@ -1,0 +1,181 @@
+{
+  "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
+  "name": "linguil",
+  "media": {
+    "dir": "src/client/public"
+  },
+  "post": {
+    "dir": "dist/client",
+    "entrypoints": {
+      "default": {
+        "entry": "splash.html",
+        "height": "regular",
+        "inline": true
+      },
+      "game": {
+        "entry": "index.html",
+        "height": "tall"
+      }
+    }
+  },
+  "server": {
+    "dir": "dist/server",
+    "entry": "index.cjs"
+  },
+  "permissions": {
+    "reddit": {
+      "enable": true,
+      "asUser": [
+        "SUBMIT_POST"
+      ]
+    },
+    "http": {
+      "enable": true,
+      "domains": [
+        "us-central1-linguil.cloudfunctions.net",
+        "storage.googleapis.com",
+        "discord.com"
+      ]
+    },
+    "redis": true,
+    "payments": true
+  },
+  "payments": {
+    "$schema": "https://developers.reddit.com/schema/products.json",
+    "products": [
+      {
+        "sku": "linguil_plus",
+        "displayName": "linguil+",
+        "description": "Unlock unlimited, offline games | Thanks for supporting linguil ʕっ•ᴥ•ʔっ♡",
+        "price": 100,
+        "images": {
+          "icon": "icon-1024x1024.png"
+        },
+        "accountingType": "DURABLE"
+      }
+    ],
+    "endpoints": {
+      "fulfillOrder": "/internal/payments/fulfill",
+      "refundOrder": "/internal/payments/refund"
+    }
+  },
+  "menu": {
+    "items": [
+      {
+        "label": "Create linguil post",
+        "location": "subreddit",
+        "endpoint": "/internal/menu/create-post",
+        "forUserType": "user"
+      }
+    ]
+  },
+  "marketingAssets": {
+      "icon": "src/client/public/icon-1024x1024.png"
+    },
+  "dev": {
+    "subreddit": "linguil"
+  },
+  "settings": {
+    "global": {
+      "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY": {
+        "type": "string",
+        "label": "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY",
+        "defaultValue": "pk_live_51S5yOfIpjjTFqpDKAlzvaysa5LqDyT6Deeg7mG7ZBq4Pde3dZJkQAv9VZCVLBWFiaTRAeKZ3Ilvsydlnez9s4EQA0069d7cFWU"
+      },
+      "NEXT_PUBLIC_STRIPE_PRICE_ID_FIXED": {
+        "type": "string",
+        "label": "NEXT_PUBLIC_STRIPE_PRICE_ID_FIXED",
+        "defaultValue": "price_1SVxX3IpjjTFqpDKAFZWKyXy"
+      },
+      "NEXT_PUBLIC_STRIPE_PRICE_ID_CUSTOM": {
+        "type": "string",
+        "label": "NEXT_PUBLIC_STRIPE_PRICE_ID_CUSTOM",
+        "defaultValue": "price_1SVxX3IpjjTFqpDKNYOhCteE"
+      },
+      "NEXT_PUBLIC_FIREBASE_CREATE_USER_FUNCTION_URL": {
+        "type": "string",
+        "label": "NEXT_PUBLIC_FIREBASE_CREATE_USER_FUNCTION_URL",
+        "defaultValue": "https://us-central1-linguil.cloudfunctions.net/createUserAccount"
+      },
+      "NEXT_PUBLIC_FIREBASE_CHECKOUT_FUNCTION_URL": {
+        "type": "string",
+        "label": "NEXT_PUBLIC_FIREBASE_CHECKOUT_FUNCTION_URL",
+        "defaultValue": "https://us-central1-linguil.cloudfunctions.net/createCheckoutSession"
+      },
+      "NEXT_PUBLIC_FIREBASE_DISCORD_AUTH_FUNCTION_URL": {
+        "type": "string",
+        "label": "NEXT_PUBLIC_FIREBASE_DISCORD_AUTH_FUNCTION_URL",
+        "defaultValue": "https://us-central1-linguil.cloudfunctions.net/discordAuth"
+      },
+      "NEXT_PUBLIC_FIREBASE_GOOGLE_AUTH_FUNCTION_URL": {
+        "type": "string",
+        "label": "NEXT_PUBLIC_FIREBASE_GOOGLE_AUTH_FUNCTION_URL",
+        "defaultValue": "https://us-central1-linguil.cloudfunctions.net/googleAuth"
+      },
+      "NEXT_PUBLIC_FIREBASE_EMAIL_AUTH_FUNCTION_URL": {
+        "type": "string",
+        "label": "NEXT_PUBLIC_FIREBASE_EMAIL_AUTH_FUNCTION_URL",
+        "defaultValue": "https://us-central1-linguil.cloudfunctions.net/authProxy"
+      },
+      "NEXT_PUBLIC_FIREBASE_REDDIT_AUTH_FUNCTION_URL": {
+        "type": "string",
+        "label": "NEXT_PUBLIC_FIREBASE_REDDIT_AUTH_FUNCTION_URL",
+        "defaultValue": "https://us-central1-linguil.cloudfunctions.net/redditAuth"
+      },
+      "NEXT_PUBLIC_FIREBASE_ANALYTICS_PROXY_URL": {
+        "type": "string",
+        "label": "NEXT_PUBLIC_FIREBASE_ANALYTICS_PROXY_URL",
+        "defaultValue": "https://us-central1-linguil.cloudfunctions.net/analyticsProxy"
+      },
+      "NEXT_PUBLIC_FIREBASE_REDDIT_GOLD_WEBHOOK_URL": {
+        "type": "string",
+        "label": "NEXT_PUBLIC_FIREBASE_REDDIT_GOLD_WEBHOOK_URL",
+        "defaultValue": "https://us-central1-linguil.cloudfunctions.net/redditGoldWebhook"
+      },
+      "NEXT_PUBLIC_FIREBASE_API_KEY": {
+        "type": "string",
+        "label": "NEXT_PUBLIC_FIREBASE_API_KEY",
+        "isSecret": true
+      },
+      "NEXT_PUBLIC_FIREBASE_PROJECT_ID": {
+        "type": "string",
+        "label": "NEXT_PUBLIC_FIREBASE_PROJECT_ID",
+        "defaultValue": "linguil"
+      },
+      "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET": {
+        "type": "string",
+        "label": "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET",
+        "defaultValue": "linguil.firebasestorage.app"
+      },
+      "NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID": {
+        "type": "string",
+        "label": "NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID",
+        "defaultValue": "G-DD4VPW4P34"
+      },
+      "NEXT_PUBLIC_DISCORD_CLIENT_ID": {
+        "type": "string",
+        "label": "NEXT_PUBLIC_DISCORD_CLIENT_ID",
+        "defaultValue": "1473406949792940247"
+      },
+      "FIRESTORE_WRITE_SECRET": {
+        "type": "string",
+        "label": "FIRESTORE_WRITE_SECRET",
+        "isSecret": true
+      },
+      "GOOGLE_CLIENT_SECRET": {
+        "type": "string",
+        "label": "GOOGLE_CLIENT_SECRET",
+        "isSecret": true
+      },
+      "GOOGLE_CLIENT_ID": {
+        "type": "string",
+        "label": "GOOGLE_CLIENT_ID",
+        "defaultValue": "485538549135-voutqeu6201qugkc9jd170pta5akko2d.apps.googleusercontent.com"
+      }
+    }
+  },
+  "scripts": {
+    "dev": "VITE_TARGET=client vite build --watch & VITE_TARGET=server vite build --watch",
+    "build": "VITE_TARGET=client vite build && VITE_TARGET=server vite build"
+  }
+}
