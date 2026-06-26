@@ -39,13 +39,15 @@ env:
   - variable: NEXT_PUBLIC_BASE_URL
     value: "https://linguil.app"
   - variable: GOOGLE_CLIENT_SECRET
-    value: GOOGLE_CLIENT_SECRET
-  - variables: GOOGLE_CLIENT_ID
+    secret: GOOGLE_CLIENT_SECRET
+  - variable: GOOGLE_CLIENT_ID
     value: "485538549135-voutqeu6201qugkc9jd170pta5akko2d.apps.googleusercontent.com"
   - variable: FIRESTORE_WRITE_SECRET
-    value: FIRESTORE_WRITE_SECRET
+    secret: FIRESTORE_WRITE_SECRET
   - variable: DISCORD_BOT_TOKEN
-    value: DISCORD_BOT_TOKEN
+    secret: DISCORD_BOT_TOKEN
+  - variable: GEMINI_API_KEY
+    secret: GEMINI_API_KEY
     
 
 headers:

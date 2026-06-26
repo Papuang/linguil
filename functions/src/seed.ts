@@ -2,15 +2,24 @@
 import { getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { TextToSpeechClient } from "@google-cloud/text-to-speech";
+import { GoogleGenAI } from "@google/genai";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import * as logger from "firebase-functions/logger";
 import * as path from "path";
+import * as os from "os";
+import * as fs from "fs";
+import { spawn } from "child_process";
 
 // Import utility functions and custom error classes.
 import { CsvRow, parseCsvFile, findRowInCsv, parseWord, shuffleArray, getRandomItem } from "./utils";
-import { CsvParsingError, DataValidationError, TtsError } from "./error";
+import { CsvParsingError, DataValidationError, TtsError as _TtsError } from "./error";
 
-const LANGUAGES_WITH_LATIN_SCRIPT_SUPPORT_ONLY = ["Amharic", "Vietnamese", "Javanese", "Tagalog", "Turkish", "Hungarian", "Hmong"];
+// Latin-only overrides.
+const LATIN_ONLY = ["Amharic", "Vietnamese", "Javanese", "Tagalog", "Turkish", "Hungarian", "Hmong"];
+// Gemini Live API languages.
+const GEMINI_SUPPORTED_LANGS = ["Amharic", "Hausa", "Persian", "Swahili", "Basque"];
+// Latin-only overrides for Gemini Live API languages.
+const GEMINI_LATIN_ONLY = ["Hausa", "Swahili"];
 
 // Defines the structure for the cached language data.
 let languageDataCache: {
@@ -116,13 +125,42 @@ async function getCoreLanguageData() {
   }
 }
 
+// Convert raw PCM (24kHz, 16-bit, mono) to MP3.
+async function convertPcmToMp3(pcmBuffer: Buffer): Promise<Buffer> {
+  const tempPcmPath = path.join(os.tmpdir(), `temp-${Date.now()}.pcm`);
+  const tempMp3Path = path.join(os.tmpdir(), `temp-${Date.now()}.mp3`);
+  fs.writeFileSync(tempPcmPath, pcmBuffer);
+
+  return new Promise((resolve, reject) => {
+    const ffmpeg = spawn("ffmpeg", [
+      "-f", "s16le", 
+      "-ar", "24000", 
+      "-ac", "1", 
+      "-i", tempPcmPath, 
+      "-y", tempMp3Path
+    ]);
+
+    ffmpeg.on("close", (code) => {
+      if (code === 0) {
+        const mp3Buffer = fs.readFileSync(tempMp3Path);
+        fs.unlinkSync(tempPcmPath);
+        fs.unlinkSync(tempMp3Path);
+        resolve(mp3Buffer);
+      } else {
+        reject(new Error(`ffmpeg exited with code ${code}`));
+      }
+    });
+  });
+}
+
 // Scheduled Cloud Function that runs daily to generate and save a new daily word challenge.
 export const seedDailyWord = onSchedule(
-  { schedule: "every day 00:00", timeoutSeconds: 540, memory: "256MiB", region: "europe-west2" },
+  { schedule: "every day 00:00", timeoutSeconds: 540, memory: "512MiB", region: "europe-west2" },
   async () => {
     // Initialize Firestore and Text-to-Speech clients.
     const db = getFirestore();
     const ttsClient = new TextToSpeechClient();
+    const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
     const today = new Date();
     const docId = today.toISOString().slice(0, 10); // Use YYYY-MM-DD as the document ID.
     const dailyWordRef = db.collection("dailyWords").doc(docId);
@@ -188,26 +226,81 @@ export const seedDailyWord = onSchedule(
 
       // Attempt to generate Text-to-Speech audio if a native script and voice are available.
       let audioUrl = null;
-      if (parsedWord.nativeScript && googleTtsVoice) {
+      let audioContent: Buffer | null = null;
+
+      // 1. Use Gemini Live API for specified languages.
+      if (GEMINI_SUPPORTED_LANGS.includes(languageName)) {
+        logger.info(`Using Gemini Live API for ${languageName}`);
         try {
-          const textToSynthesize = LANGUAGES_WITH_LATIN_SCRIPT_SUPPORT_ONLY.includes(languageName) ? parsedWord.transliteration : parsedWord.nativeScript;
-          const ttsRequest = { input: { text: textToSynthesize }, voice: { name: googleTtsVoice, languageCode: langCode }, audioConfig: { audioEncoding: "MP3" as const } };
+          const wordToSay = GEMINI_LATIN_ONLY.includes(languageName) 
+            ? parsedWord.transliteration 
+            : (parsedWord.nativeScript || parsedWord.transliteration);
+
+          const chunks: Buffer[] = [];
+          const session = await genAI.live.connect({
+            model: "gemini-3.1-flash-live-preview",
+            config: { responseModalities: ["AUDIO"] as any },
+            callbacks: {
+              onmessage: (message: any) => {
+                const parts = message.serverContent?.modelTurn?.parts;
+                if (parts) {
+                  for (const part of parts) {
+                    if (part.inlineData?.data) {
+                      chunks.push(Buffer.from(part.inlineData.data, "base64"));
+                    }
+                  }
+                }
+              }
+            }
+          });
+
+          session.sendRealtimeInput({
+            text: `Say the word "${wordToSay}" in ${languageName}. Output ONLY the audio of the word itself. No greeting, no explanation.`
+          });
+
+          await new Promise(resolve => setTimeout(resolve, 4000));
+          session.close();
+
+          if (chunks.length > 0) {
+            const rawPcm = Buffer.concat(chunks);
+            audioContent = await convertPcmToMp3(rawPcm);
+            logger.info(`Gemini generated and converted audio for ${languageName}`);
+          }
+        } catch (err) {
+          logger.error(`Gemini API failed for ${languageName}, trying TTS fallback.`, err);
+        }
+      }
+
+      // 2. Fallback to Google Cloud TTS.
+      if (!audioContent && googleTtsVoice) {
+        try {
+          const textToSynthesize = LATIN_ONLY.includes(languageName) ? parsedWord.transliteration : (parsedWord.nativeScript || parsedWord.transliteration);
+          const ttsRequest = { 
+            input: { text: textToSynthesize }, 
+            voice: { name: googleTtsVoice, languageCode: langCode }, 
+            audioConfig: { audioEncoding: "MP3" as const } 
+          };
           const [ttsResponse] = await ttsClient.synthesizeSpeech(ttsRequest);
           if (ttsResponse.audioContent) {
-            const bucket = getStorage().bucket();
-            const fileName = `audio/${docId}/${parsedWord.transliteration || "audio"}.mp3`;
-            const file = bucket.file(fileName);
-            await file.save(ttsResponse.audioContent, { metadata: { contentType: "audio/mpeg" }, public: true });
-            audioUrl = file.publicUrl(); // Get the public URL of the saved audio file.
-            logger.info(`Successfully stored TTS audio at ${audioUrl}`);
-          } else {
-            throw new TtsError(`TTS response for "${textToSynthesize}" did not contain audio content`);
+            audioContent = Buffer.from(ttsResponse.audioContent);
           }
         } catch (ttsError) {
           // Wrap TTS errors in a custom error type for better diagnostics.
-          throw new TtsError(`Failed to generate TTS audio for "${parsedWord.nativeScript}" Error: ${ttsError instanceof Error ? ttsError.message : "Unknown TTS error"}`);
+          throw new _TtsError(`Failed to generate TTS audio for "${parsedWord.nativeScript}" Error: ${ttsError instanceof Error ? ttsError.message : "Unknown TTS error"}`);
         }
       } else { logger.warn(`Skipping TTS generation: nativeScript: "${parsedWord.nativeScript}", googleTtsVoice: "${googleTtsVoice}"`); }
+
+      // 3. Save the audio content.
+      if (audioContent) {
+        const bucket = getStorage().bucket();
+        const fileName = `audio/${docId}/${parsedWord.transliteration || "audio"}.mp3`;
+        const file = bucket.file(fileName);
+        await file.save(audioContent, { metadata: { contentType: "audio/mpeg" }, public: true });
+        audioUrl = file.publicUrl(); // Get the public URL of the saved audio file.
+        logger.info(`Successfully stored audio at ${audioUrl}`);
+      } else {
+        throw new _TtsError(`TTS response for "${languageName}" did not contain audio content`);
+      }
 
       // Generate distractor options for the language family quiz.
       const familyDistractors = shuffleArray(
