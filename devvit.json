@@ -9,8 +9,7 @@
     "entrypoints": {
       "default": {
         "entry": "splash.html",
-        "height": "regular",
-        "inline": true
+        "height": "regular"
       },
       "game": {
         "entry": "index.html",
@@ -21,6 +20,14 @@
   "server": {
     "dir": "dist/server",
     "entry": "index.cjs"
+  },
+  "scheduler": {
+    "tasks": {
+      "daily-post": {
+        "endpoint": "/internal/scheduler/daily-post",
+        "cron": "0 5 * * *"
+      }
+    }
   },
   "permissions": {
     "reddit": {

@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { createServer, getServerPort, reddit, context, EntrypointHeight } from '@devvit/web/server';
 import type { MenuItemRequest, UiResponse } from '@devvit/web/shared';
+import type { TaskRequest, TaskResponse } from '@devvit/web/server';
 import { serve } from '@hono/node-server';
 import { verifyToken } from './middleware';
 import { addDailyWordRoute } from './routes/daily-word';
@@ -27,6 +28,7 @@ import { addAnalyticsRoute } from './routes/analytics';
 import { addRedditAuthRoute } from './routes/auth/reddit-auth';
 import { addFulfillOrderRoute } from './routes/fulfill-order';
 import { addRefundOrderRoute } from './routes/refund-order';
+import { getDailyWordData } from './lib/game/data-service-server';
 
 const app = new Hono();
 
@@ -53,6 +55,40 @@ app.post('/internal/menu/create-post', async (c) => {
   } catch (_error: any) {
     return c.json<UiResponse>({ showToast: 'Failed to create post.' });
   }
+});
+
+app.post('/internal/scheduler/daily-post', async (c) => {
+  const _input = await c.req.json<TaskRequest>();
+  const { subredditName } = context;
+
+  if (!subredditName) {
+    console.error("Scheduler ran without subreddit context");
+    return c.json<TaskResponse>({ status: "ok" });
+  }
+
+  const dailyWordData = await getDailyWordData();
+  if (!dailyWordData) {
+      console.error("Failed to fetch daily word");
+      return c.json<TaskResponse>({ status: "ok" });
+  }
+
+  try {
+    const today = new Date();
+    await reddit.submitCustomPost({
+        subredditName: subredditName,
+        title: `linguil | ${dailyWordData.word.transliteration} | ${dailyWordData.word.nativeScript} | ${today.toLocaleDateString("en-GB", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "2-digit",
+        })}`,
+        entry: "game",
+    });
+    console.log(`Created daily post in ${subredditName}`);
+  } catch (e) {
+      console.error(`Failed to create post in ${subredditName}`, e);
+  }
+
+  return c.json<TaskResponse>({ status: "ok" });
 });
 
 // Apply middleware to protected routes.

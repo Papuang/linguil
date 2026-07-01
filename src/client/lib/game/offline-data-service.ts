@@ -5,6 +5,8 @@ import wordCsv from '@/shared/data/MultiLangSwadesh.csv?raw';
 import familiesCsv from '@/shared/data/MultiLangFamilies.csv?raw';
 import langCodesCsv from '@/shared/data/LanguageCodes.csv?raw';
 import langStatsCsv from '@/shared/data/LangStats.csv?raw';
+import regionsCsv from '@/shared/data/MultiLangRegions.csv?raw';
+import familyRegionsCsv from '@/shared/data/LangFamilyRegions.csv?raw';
 import scoreMessages from '@/shared/data/score-messages.json';
 
 type ProcessedWordRecord = {
@@ -21,6 +23,9 @@ type LanguageStatsRecord = {
   highestNumberSpeakers: string;
   countrySpeakers: string;
 };
+type RegionRecord = { language: string; region: string };
+type FamilyRegionRecord = { family: string; region: string };
+
 type ScoreMessages = Record<number, string>;
 export type CachedData = {
   words: ProcessedWordRecord[];
@@ -29,6 +34,10 @@ export type CachedData = {
   langStatsMap: Map<string, LanguageStatsRecord>;
   languagesByFamilyMap: Map<string, string[]>;
   ambiguousWordsMap: Map<string, Map<string, string[]>>;
+  regionsByLanguage: Map<string, string>;
+  languagesByRegion: Map<string, string[]>;
+  regionsByFamily: Map<string, string[]>;
+  familiesByRegion: Map<string, string[]>;
   allFamilies: string[];
   allLanguages: string[];
   allTranslations: string[];
@@ -60,6 +69,8 @@ export const processAndCacheData = async (): Promise<CachedData> => {
         highestNumberSpeakers: highest.trim().replace(/_/g, ' '),
         countrySpeakers: country.trim(),
       }));
+      const regionsData: RegionRecord[] = parseCsv(regionsCsv, ([lang, reg]) => ({ language: lang.trim().replace(/_/g, ' '), region: reg.trim().replace(/_/g, ' ') }));
+      const familyRegionsData: FamilyRegionRecord[] = parseCsv(familyRegionsCsv, ([fam, reg]) => ({ family: fam.trim().replace(/_/g, ' '), region: reg.trim().replace(/_/g, ' ') }));
 
       const words: ProcessedWordRecord[] = [];
       const wordLines = wordCsv.trim().split('\r\n');
@@ -94,6 +105,24 @@ export const processAndCacheData = async (): Promise<CachedData> => {
         transMap.set(word.transliteration, langList);
         ambiguousWordsMap.set(word.translation, transMap);
       });
+
+      const regionsByLanguage = new Map<string, string>();
+      const languagesByRegion = new Map<string, string[]>();
+      regionsData.forEach(record => {
+        regionsByLanguage.set(record.language, record.region);
+        if (!languagesByRegion.has(record.region)) languagesByRegion.set(record.region, []);
+        languagesByRegion.get(record.region)!.push(record.language);
+      });
+
+      const regionsByFamily = new Map<string, string[]>();
+      const familiesByRegion = new Map<string, string[]>();
+      familyRegionsData.forEach(record => {
+        if (!regionsByFamily.has(record.family)) regionsByFamily.set(record.family, []);
+        regionsByFamily.get(record.family)!.push(record.region);
+
+        if (!familiesByRegion.has(record.region)) familiesByRegion.set(record.region, []);
+        familiesByRegion.get(record.region)!.push(record.family);
+      });
       
       const processed: CachedData = {
         words,
@@ -106,6 +135,10 @@ export const processAndCacheData = async (): Promise<CachedData> => {
         allTranslations: [...new Set(words.map(w => w.translation))],
         languagesByFamilyMap,
         ambiguousWordsMap,
+        regionsByLanguage,
+        languagesByRegion,
+        regionsByFamily,
+        familiesByRegion,
       };
       
       return processed;

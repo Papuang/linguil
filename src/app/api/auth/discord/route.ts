@@ -108,7 +108,8 @@ export async function POST(req: NextRequest) {
         const exchangeResponse = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=${apiKey}`, {
           method: 'POST',
           headers: { 
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Referer': 'https://linguil.app/'
           },
           body: JSON.stringify({ token: customToken, returnSecureToken: true }),
         });

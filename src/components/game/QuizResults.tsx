@@ -104,10 +104,10 @@ const ScoreDisplay = memo(({ score, totalQuestions }: { score: number, totalQues
 
   return (
     <div className="shrink-0 w-full" ref={containerRef}>
-      <p className="font-headline text-3xl font-bold mb-2 dark:text-white">
+      <p className="font-headline text-3xl font-bold mb-2 text-foreground dark:text-white">
         You scored {score}/{totalQuestions}
       </p>
-      <p ref={messageRef} className="text-4xl mb-2 dark:text-white whitespace-nowrap" aria-hidden="true">
+      <p ref={messageRef} className="text-4xl mb-2 text-foreground dark:text-white whitespace-nowrap" aria-hidden="true">
         {message}
       </p>
       <p className="text-muted-foreground dark:text-foreground mb-2">Thanks for playing!</p>
@@ -320,7 +320,7 @@ const QuizResults = ({
                     readOnly
                     value={shareText}
                     rows={5}
-                    className="w-fit h-fit bg-card p-1 font-sans text-xs text-center dark:text-white rounded-md resize-none ring-1 ring-primary"
+                    className="w-fit h-fit bg-card p-1 font-sans text-xs text-center text-foreground dark:text-white rounded-md resize-none ring-1 ring-primary"
                     // Auto-select all text when the user clicks inside the box.
                     onClick={(e) => (e.target as HTMLTextAreaElement).select()}
                   />

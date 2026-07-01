@@ -14,6 +14,9 @@ type LanguageStatsRecord = {
   highestNumberSpeakers: string;
   countrySpeakers: string;
 };
+type RegionRecord = { language: string; region: string };
+type FamilyRegionRecord = { family: string; region: string };
+
 type ScoreMessages = Record<number, string>;
 export type CachedData = {
   words: ProcessedWordRecord[];
@@ -22,6 +25,10 @@ export type CachedData = {
   langStatsMap: Map<string, LanguageStatsRecord>;
   languagesByFamilyMap: Map<string, string[]>;
   ambiguousWordsMap: Map<string, Map<string, string[]>>;
+  regionsByLanguage: Map<string, string>;
+  languagesByRegion: Map<string, string[]>;
+  regionsByFamily: Map<string, string[]>;
+  familiesByRegion: Map<string, string[]>;
   allFamilies: string[];
   allLanguages: string[];
   allTranslations: string[];
@@ -32,6 +39,8 @@ const WORD_CSV_FILE = 'MultiLangSwadesh.csv';
 const FAMILIES_CSV_FILE = 'MultiLangFamilies.csv';
 const LANG_CODES_CSV_FILE = 'LanguageCodes.csv';
 const LANG_STATS_CSV_FILE = 'LangStats.csv';
+const REGIONS_CSV_FILE = 'MultiLangRegions.csv';
+const FAMILY_REGIONS_CSV_FILE = 'LangFamilyRegions.csv';
 const SCORE_MESSAGES_JSON_FILE = 'score-messages.json';
 
 // Generic CSV parser for client-side text content.
@@ -51,11 +60,13 @@ const parseCsv = <T>(csvText: string, parser: (parts: string[]) => T | null): T[
 // Loads, processes, and caches all data required for the offline quiz.
 export const processAndCacheData = async (): Promise<CachedData> => {
     try {
-      const [wordCsv, familiesCsv, langCodesCsv, langStatsCsv, scoreMessages] = await Promise.all([
+      const [wordCsv, familiesCsv, langCodesCsv, langStatsCsv, regionsCsv, familyRegionsCsv, scoreMessages] = await Promise.all([
         fetch(`/data/${WORD_CSV_FILE}`).then(res => res.text()),
         fetch(`/data/${FAMILIES_CSV_FILE}`).then(res => res.text()),
         fetch(`/data/${LANG_CODES_CSV_FILE}`).then(res => res.text()),
         fetch(`/data/${LANG_STATS_CSV_FILE}`).then(res => res.text()),
+        fetch(`/data/${REGIONS_CSV_FILE}`).then(res => res.text()),
+        fetch(`/data/${FAMILY_REGIONS_CSV_FILE}`).then(res => res.text()),
         fetch(`/data/${SCORE_MESSAGES_JSON_FILE}`).then(res => res.json()),
       ]);
 
@@ -67,6 +78,8 @@ export const processAndCacheData = async (): Promise<CachedData> => {
         highestNumberSpeakers: highest.trim().replace(/_/g, ' '),
         countrySpeakers: country.trim(),
       }));
+      const regionsData: RegionRecord[] = parseCsv(regionsCsv, ([lang, reg]) => ({ language: lang.trim().replace(/_/g, ' '), region: reg.trim().replace(/_/g, ' ') }));
+      const familyRegionsData: FamilyRegionRecord[] = parseCsv(familyRegionsCsv, ([fam, reg]) => ({ family: fam.trim().replace(/_/g, ' '), region: reg.trim().replace(/_/g, ' ') }));
 
       const words: ProcessedWordRecord[] = [];
       const wordLines = wordCsv.trim().split('\n');
@@ -101,6 +114,24 @@ export const processAndCacheData = async (): Promise<CachedData> => {
         transMap.set(word.transliteration, langList);
         ambiguousWordsMap.set(word.translation, transMap);
       });
+
+      const regionsByLanguage = new Map<string, string>();
+      const languagesByRegion = new Map<string, string[]>();
+      regionsData.forEach(record => {
+        regionsByLanguage.set(record.language, record.region);
+        if (!languagesByRegion.has(record.region)) languagesByRegion.set(record.region, []);
+        languagesByRegion.get(record.region)!.push(record.language);
+      });
+
+      const regionsByFamily = new Map<string, string[]>();
+      const familiesByRegion = new Map<string, string[]>();
+      familyRegionsData.forEach(record => {
+        if (!regionsByFamily.has(record.family)) regionsByFamily.set(record.family, []);
+        regionsByFamily.get(record.family)!.push(record.region);
+
+        if (!familiesByRegion.has(record.region)) familiesByRegion.set(record.region, []);
+        familiesByRegion.get(record.region)!.push(record.family);
+      });
       
       const processed: CachedData = {
         words,
@@ -113,6 +144,10 @@ export const processAndCacheData = async (): Promise<CachedData> => {
         allTranslations: [...new Set(words.map(w => w.translation))],
         languagesByFamilyMap,
         ambiguousWordsMap,
+        regionsByLanguage,
+        languagesByRegion,
+        regionsByFamily,
+        familiesByRegion,
       };
       
       return processed;

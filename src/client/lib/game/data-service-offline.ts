@@ -50,7 +50,8 @@ const getUniqueRandomItems = <T>(
   seed: number
 ): T[] => {
   const excludeSet = new Set(exclude);
-  const availableItems = array.filter(item => !excludeSet.has(item));
+  // Create a unique set of available items first.
+  const availableItems = [...new Set(array.filter(item => !excludeSet.has(item)))];
   const shuffled = deterministicShuffle(availableItems, seed);
   return shuffled.slice(0, count);
 };
@@ -131,11 +132,14 @@ export const getOfflineQuizData = async (retries = MAX_RETRIES): Promise<{
   }
   const randomWord = data.words[Math.floor(Math.random() * wordCount)]!;
 
-  const familyRecord = data.familiesMap.get(randomWord.language); // Gather all necessary metadata for the chosen word.
+  // Gather all necessary metadata for the chosen word.
+  const familyRecord = data.familiesMap.get(randomWord.language);
   const langCodeRecord = data.langCodesMap.get(randomWord.language);
   const langStatsRecord = data.langStatsMap.get(randomWord.language);
+  const languageRegion = data.regionsByLanguage.get(randomWord.language);
 
-  if (!familyRecord || !langCodeRecord) { // Safeguard against corrupt or inconsistent CSV data.
+  // Safeguard against corrupt or inconsistent CSV data.
+  if (!familyRecord || !langCodeRecord) {
     if (retries > 0) {
       return getOfflineQuizData(retries - 1); // Retry generation on data inconsistency.
     } else {
@@ -156,7 +160,14 @@ export const getOfflineQuizData = async (retries = MAX_RETRIES): Promise<{
     langCode: correctLangCode,
   };
 
-  const familyOptions = [correctFamily, ...getUniqueRandomItems(data.allFamilies, 3, [correctFamily], seed + 1)]; // Generate Question 1: Language Family.
+  // Question 1: Language family.
+  const sameRegionFamilies = languageRegion ? data.familiesByRegion.get(languageRegion) || [] : [];
+  const familyDistractorPool = [
+    ...new Set(sameRegionFamilies.filter(f => f !== correctFamily)),
+    ...new Set(data.allFamilies.filter(f => f !== correctFamily))
+  ];
+  const familyDistractors = getUniqueRandomItems(familyDistractorPool, 3, [], seed + 1);
+  const familyOptions = [correctFamily, ...familyDistractors];
   const question1: Question = {
     type: 'family',
     prompt: 'Which language family is this word from?',
@@ -164,25 +175,33 @@ export const getOfflineQuizData = async (retries = MAX_RETRIES): Promise<{
     options: deterministicShuffle(familyOptions, seed + 2),
   };
 
-  const ambiguousLangs = data.ambiguousWordsMap.get(correctTranslation)?.get(randomWord.transliteration) || []; // Generate Question 2: Specific Language.
-  const languagesInFamily = data.languagesByFamilyMap.get(correctFamily) || [];
-  const languageOptions = [correctLanguage];
-  const excludeFromFamily = [...new Set([correctLanguage, ...ambiguousLangs])];
-  languageOptions.push(...getUniqueRandomItems(languagesInFamily, 3, excludeFromFamily, seed + 3));
+  // Question 2: Language.
+  const ambiguousLangs = data.ambiguousWordsMap.get(correctTranslation)?.get(randomWord.transliteration) || [];
+  const sameFamilyLangs = data.languagesByFamilyMap.get(correctFamily) || [];
+  const sameRegionLanguages = languageRegion ? data.languagesByRegion.get(languageRegion) || [] : [];
 
-  if (languageOptions.length < 4) { // Ensure we always have 4 options, pulling from other languages if necessary.
-    const excludeGeneral = [...new Set([...languageOptions, ...ambiguousLangs])];
-    const needed = 4 - languageOptions.length;
-    languageOptions.push(...getUniqueRandomItems(data.allLanguages, needed, excludeGeneral, seed + 4));
-  }
+  const sameFamilyDistractors = sameFamilyLangs.filter(lang => !ambiguousLangs.includes(lang) && lang !== correctLanguage);
+  const sameRegionDistractors = sameRegionLanguages.filter(lang => !ambiguousLangs.includes(lang) && lang !== correctLanguage);
+  const otherFamilyDistractors = data.allLanguages.filter(lang => !sameFamilyLangs.includes(lang) && !ambiguousLangs.includes(lang) && lang !== correctLanguage);
+
+  const priorityPool = deterministicShuffle(
+    [...new Set(sameFamilyDistractors.concat(sameRegionDistractors))],
+    seed + 3
+  );
+  const otherPool = deterministicShuffle([...new Set(otherFamilyDistractors)], seed + 3.1);
+  const combinedPool = [...new Set([...priorityPool, ...otherPool])];
+  const langDistractors = combinedPool.slice(0, 3);
+
+  const languageOptions = [correctLanguage, ...langDistractors];
   const question2: Question = {
     type: 'language',
     prompt: `Which ${correctFamily} language is this word from?`,
     correctAnswer: correctLanguage,
-    options: deterministicShuffle(languageOptions.slice(0, 4), seed + 5),
+    options: deterministicShuffle(languageOptions, seed + 5),
   };
 
-  const translationOptions = [correctTranslation, ...getUniqueRandomItems(data.allTranslations, 3, [correctTranslation], seed + 6)]; // Generate Question 3: English Translation.
+  // Question 3: English translation.
+  const translationOptions = [correctTranslation, ...getUniqueRandomItems(data.allTranslations, 3, [correctTranslation], seed + 6)];
   const question3: Question = {
     type: 'translation',
     prompt: 'What is the English translation of this word?',
@@ -190,7 +209,8 @@ export const getOfflineQuizData = async (retries = MAX_RETRIES): Promise<{
     options: deterministicShuffle(translationOptions, seed + 7),
   };
 
-  const languageStats = langStatsRecord ? { // Compile the final language statistics object.
+  // Compile the final language statistics object.
+  const languageStats = langStatsRecord ? { 
     family: correctFamily,
     language: langStatsRecord.language,
     totalSpeakers: langStatsRecord.totalSpeakers,
