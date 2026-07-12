@@ -1,11 +1,10 @@
-import { Hono } from 'hono';
+import type { Hono, Context } from 'hono';
 import { reddit } from '@devvit/web/server';
-import type { Context as HonoContext } from 'hono';
-import { restGetDoc } from '../lib/firestore-rest';
+import { restGetDoc } from '@/server/lib/firestore-rest';
 
 // Creates a route to check for the 'hasPaid' field in the user's Firestore document.
 export const addVerifyPaymentRoute = (app: Hono) => {
-  app.get('/verify-payment', async (c: HonoContext) => {
+  app.get('/api/verify-payment', async (c: Context) => {
     try {
       // 1. Get the current user from the server-side Reddit client.
       const currentUser = await reddit.getCurrentUser();

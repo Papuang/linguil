@@ -12,10 +12,6 @@ env:
     value: "https://createuseraccount-jx2iokq3gq-uc.a.run.app"
   - variable: NEXT_PUBLIC_FIREBASE_CHECKOUT_FUNCTION_URL
     value: "https://createcheckoutsession-jx2iokq3gq-uc.a.run.app"
-  - variable: NEXT_PUBLIC_FIREBASE_DISCORD_AUTH_FUNCTION_URL
-    value: "https://us-central1-linguil.cloudfunctions.net/discordAuth"
-  - variable: NEXT_PUBLIC_FIREBASE_GOOGLE_AUTH_FUNCTION_URL
-    value: "https://us-central1-linguil.cloudfunctions.net/googleAuth"
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY
     secret: NEXT_PUBLIC_FIREBASE_API_KEY
   - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
@@ -38,16 +34,16 @@ env:
     value: "https://linguil.app/auth/discord/callback"
   - variable: NEXT_PUBLIC_BASE_URL
     value: "https://linguil.app"
-  - variable: GOOGLE_CLIENT_SECRET
-    secret: GOOGLE_CLIENT_SECRET
-  - variable: GOOGLE_CLIENT_ID
-    value: "485538549135-voutqeu6201qugkc9jd170pta5akko2d.apps.googleusercontent.com"
   - variable: FIRESTORE_WRITE_SECRET
     secret: FIRESTORE_WRITE_SECRET
   - variable: DISCORD_BOT_TOKEN
     secret: DISCORD_BOT_TOKEN
   - variable: GEMINI_API_KEY
     secret: GEMINI_API_KEY
+  - variable: META_CAPI_ACCESS_TOKEN
+    secret: META_CAPI_ACCESS_TOKEN
+  - variable: META_PIXEL_ID
+    secret: META_PIXEL_ID
     
 
 headers:

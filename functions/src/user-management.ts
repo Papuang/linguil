@@ -1,11 +1,58 @@
 import * as admin from "firebase-admin";
 import * as functions from "firebase-functions/v1";
 import { onRequest } from "firebase-functions/v2/https";
+import cookieParser from "cookie-parser";
 import { db } from "./init";
 import { getStripe } from "./stripe";
+import { FacebookAdsApi, UserData, ServerEvent, EventRequest } from "facebook-nodejs-business-sdk";
+
+const cookieParserMiddleware = cookieParser();
+
+// Helper function to send the Meta CAPI registration payload securely using the SDK.
+const sendMetaCapiRegistration = async (uid: string, email?: string, extraData?: { fbc?: string; fbp?: string; clientIp?: string; userAgent?: string }) => {
+  if (!email) return;
+
+  const pixelId = process.env.META_PIXEL_ID;
+  const accessToken = process.env.META_CAPI_ACCESS_TOKEN;
+  
+  console.log("Attempting to use Pixel ID:", pixelId);
+
+  if (!pixelId || !accessToken) {
+    console.warn("Meta CAPI tracking skipped: Pixel ID or Access Token is missing from secrets environment.");
+    return;
+  }
+
+  try {
+    FacebookAdsApi.init(accessToken);
+
+    const userData = new UserData()
+      .setEmails([email])
+      .setExternalId(uid)
+      .setClientIpAddress(extraData?.clientIp ?? "")
+      .setClientUserAgent(extraData?.userAgent ?? "")
+      .setFbc(extraData?.fbc ?? "")
+      .setFbp(extraData?.fbp ?? "");
+
+    const serverEvent = new ServerEvent()
+      .setEventName("CompleteRegistration")
+      .setEventTime(Math.floor(Date.now() / 1000))
+      .setEventSourceUrl("https://linguil.app")
+      .setUserData(userData)
+      .setActionSource("website");
+
+    const eventsData = [serverEvent];
+    const eventRequest = new EventRequest(accessToken, pixelId).setEvents(eventsData);
+    
+    await eventRequest.execute();
+    console.log("Successfully sent CompleteRegistration event to Meta CAPI via SDK.");
+
+  } catch (error) {
+    console.error("Failed to post Meta CAPI track request via SDK:", error);
+  }
+};
 
 // Internal function to set up a new user's documents and Stripe customer.
-const setupNewUser = async (user: admin.auth.UserRecord) => {
+const setupNewUser = async (user: admin.auth.UserRecord, extraData?: { fbc?: string; fbp?: string; clientIp?: string; userAgent?: string }) => {
   const userPublicDocRef = db.collection("users_public").doc(user.uid);
   const doc = await userPublicDocRef.get();
 
@@ -44,65 +91,95 @@ const setupNewUser = async (user: admin.auth.UserRecord) => {
 
     // Commit the batch
     await batch.commit();
+
+    // Trigger the conversion asynchronously.
+    sendMetaCapiRegistration(user.uid, user.email, extraData).catch((err) =>
+      console.error("Meta CAPI async wrapper error logic:", err)
+    );
   }
 };
 
 // Background trigger (v1) to set up a new user.
-export const onUserCreate = functions.region("us-central1").runWith({ secrets: ["STRIPE_SECRET_KEY"] }).auth.user().onCreate(setupNewUser);
+export const onUserCreate = functions
+  .region("us-central1")
+  .runWith({ secrets: ["STRIPE_SECRET_KEY", "META_CAPI_ACCESS_TOKEN", "META_PIXEL_ID"] })
+  .auth.user()
+  .onCreate((user) => setupNewUser(user));
 
 // HTTP-triggered Cloud Function to create a new user account.
-export const createUserAccount = onRequest({ region: "us-central1", secrets: ["STRIPE_SECRET_KEY"], memory: "256MiB", cors: [ "https://www.linguil.app", "https://linguil.web.app", "https://linguil.firebaseapp.com", /^https:\/\/.*\.cloudworkstations\.dev$/ ] }, async (req, res) => {
-  // Destructure required parameters from the request body.
-  const { name, email, password } = req.body;
+export const createUserAccount = onRequest(
+  {
+    region: "us-central1",
+    secrets: ["STRIPE_SECRET_KEY", "META_CAPI_ACCESS_TOKEN", "META_PIXEL_ID"],
+    memory: "256MiB",
+    cors: [
+      "https://www.linguil.app",
+      "https://linguil.web.app",
+      "https://linguil.firebaseapp.com",
+      /^https:\/\/.*\.cloudworkstations\.dev$/,
+    ],
+  },
+  (req, res) => {
+    cookieParserMiddleware(req, res, async () => {
+      // Destructure required parameters from the request body.
+      const { name, email, password } = req.body;
 
-  // Validate that all required parameters are present.
-  if (!name || !email || !password) {
-    res.status(400).send("Missing required parameters: name, email, or password");
-    return;
-  }
-  
-  let userRecord: admin.auth.UserRecord | null = null;
-
-  try {
-    // Check if a user with the given email already exists.
-    try {
-      await admin.auth().getUserByEmail(email);
-      res.status(409).send("A user with this email address already exists");
-      return;
-    } catch (error: any) {
-      // If the error is anything other than 'user-not-found', re-throw it.
-      if (error.code !== "auth/user-not-found") {
-        throw error;
+      // Validate that all required parameters are present.
+      if (!name || !email || !password) {
+        res.status(400).send("Missing required parameters: name, email, or password");
+        return;
       }
-    }
 
-    // Create a new user in Firebase Authentication.
-    userRecord = await admin.auth().createUser({
-      email: email,
-      password: password,
-      displayName: name,
-    });
+      let userRecord: admin.auth.UserRecord | null = null;
 
-    // Manually call setupNewUser to ensure the displayName is captured correctly.
-    await setupNewUser(userRecord);
-    
-    // Generate a custom token for the client to use for a reliable sign-in.
-    const customToken = await admin.auth().createCustomToken(userRecord.uid);
-
-    // Return the token to the client.
-    res.json({ token: customToken });
-
-  } catch (err: unknown) {
-    // Clean up user record if user creation or setup fails.
-    if (userRecord) {
       try {
-        await admin.auth().deleteUser(userRecord.uid);
-      } catch (cleanupError) {
-        console.error(`CRITICAL: Failed to clean up user ${userRecord.uid} after a failed signup.`, cleanupError);
+        // Check if a user with the given email already exists.
+        try {
+          await admin.auth().getUserByEmail(email);
+          res.status(409).send("A user with this email address already exists");
+          return;
+        } catch (error: any) {
+          // If the error is anything other than 'user-not-found', re-throw it.
+          if (error.code !== "auth/user-not-found") {
+            throw error;
+          }
+        }
+
+        // Create a new user in Firebase Authentication.
+        userRecord = await admin.auth().createUser({
+          email: email,
+          password: password,
+          displayName: name,
+        });
+
+        const fbc = req.cookies?.["_fbc"] as string;
+        const fbp = req.cookies?.["_fbp"] as string;
+        const clientIp = req.ip;
+        const userAgent = req.headers["user-agent"] as string;
+
+
+        // Manually call setupNewUser to ensure the displayName is captured correctly.
+        await setupNewUser(userRecord, { fbc, fbp, clientIp, userAgent });
+
+        // Generate a custom token for the client to use for a reliable sign-in.
+        const customToken = await admin.auth().createCustomToken(userRecord.uid);
+
+        // Return the token to the client.
+        res.json({ token: customToken });
+
+      } catch (err: unknown) {
+        // Clean up user record if user creation or setup fails.
+        if (userRecord) {
+          try {
+            await admin.auth().deleteUser(userRecord.uid);
+          } catch (cleanupError) {
+            console.error(`CRITICAL: Failed to clean up user ${userRecord.uid} after a failed signup.`, cleanupError);
+          }
+        }
+
+        console.error("Error in createUserAccount:", err);
+        res.status(500).send("An unexpected error occurred while creating the user account");
       }
-    }
-    
-    console.error("Error in createUserAccount:", err);
-    res.status(500).send("An unexpected error occurred while creating the user account");
+    });
   }
-});
+);

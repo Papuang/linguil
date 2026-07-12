@@ -1,17 +1,19 @@
 'use client';
 
-import { useEffect, useCallback, useReducer } from 'react';
+import { useEffect, useCallback, useReducer, useRef } from 'react';
 import type { ProcessedDailyData, RawDailyData, DailyScore } from '@/shared/types';
 import { useAuth } from '@/client/hooks/use-auth';
 import { useToast } from '@/client/hooks/use-toast';
 import { getDailyWordDataClient } from '@/client/lib/game/data-service-client';
 import { getOfflineQuizData } from '@/client/lib/game/data-service-offline';
 import { generateQuestions } from '@/client/lib/game/quiz-questions';
+import { telemetry } from '@devvit/analytics/client/reddit';
 
 // Keys for session storage to persist game state across page reloads.
 const GAME_MODE_KEY = 'linguil-game-mode'; // Tracks if the user is in 'online' or 'offline' mode.
 const OFFLINE_GAME_DATA_KEY = 'linguil-offline-game-data'; // Caches data for the current offline game.
 const PENDING_SCORE_KEY = 'linguil-pending-score'; // Stores a completed score if the user was logged out.
+const JOURNEY_ACTIVE_KEY = 'linguil-journey-active';
 
 // Defines the structure of the game's state.
 interface GameState {
@@ -98,6 +100,7 @@ export const useGame = (initialDailyWord: RawDailyData | null = null) => {
   const { toast } = useToast();
   const { user, loading: authLoading, hasPaid, addSignOutCleanup, removeSignOutCleanup } = useAuth();
   const [state, dispatch] = useReducer(gameReducer, initialState);
+  const appReadyFired = useRef(false);
 
   // Shows an error toast.
   const showErrorToast = useCallback((title: string, description: string) => {
@@ -182,10 +185,27 @@ export const useGame = (initialDailyWord: RawDailyData | null = null) => {
       }
 
       dispatch({ type: 'SET_ONLINE_MODE', payload: { data: processedData, score: finalScore } });
+      if (!appReadyFired.current) {
+        try {
+          const { receipt } = await telemetry.appReady();
+          console.log('App ready receipt:', receipt);
+          appReadyFired.current = true;
+        } catch (e) {
+          console.error('Failed to send appReady event:', e);
+        }
+      }
     } catch (err) {
       console.error("Error loading daily data:", err);
       showErrorToast("Error loading game", "Failed to load game data");
       dispatch({ type: 'DATA_LOAD_ERROR' });
+      if (sessionStorage.getItem(JOURNEY_ACTIVE_KEY) === 'true') {
+        try {
+          await telemetry.endJourney({ complete: false });
+          sessionStorage.removeItem(JOURNEY_ACTIVE_KEY);
+        } catch (e) {
+          console.error('Failed to end journey on error:', e);
+        }
+      }
     }
   }, [initialDailyWord, getUserDailyScore, user, showErrorToast, getPendingScore, saveScoreToServer]);
 
@@ -219,10 +239,27 @@ export const useGame = (initialDailyWord: RawDailyData | null = null) => {
         }
       }
       dispatch({ type: 'SET_OFFLINE_MODE', payload: dataToLoad });
+      if (!appReadyFired.current) {
+        try {
+          const { receipt } = await telemetry.appReady();
+          console.log('App ready receipt:', receipt);
+          appReadyFired.current = true;
+        } catch (e) {
+          console.error('Failed to send appReady event:', e);
+        }
+      }
     } catch (error) {
       console.error('Offline game loading error:', error);
       showErrorToast("Error loading offline game", "Could not prepare the offline game.");
       dispatch({ type: 'DATA_LOAD_ERROR' });
+      if (sessionStorage.getItem(JOURNEY_ACTIVE_KEY) === 'true') {
+        try {
+          await telemetry.endJourney({ complete: false });
+          sessionStorage.removeItem(JOURNEY_ACTIVE_KEY);
+        } catch (e) {
+          console.error('Failed to end journey on error:', e);
+        }
+      }
     }
   }, [showErrorToast]);
 
@@ -243,6 +280,7 @@ export const useGame = (initialDailyWord: RawDailyData | null = null) => {
       sessionStorage.removeItem(GAME_MODE_KEY);
       sessionStorage.removeItem(OFFLINE_GAME_DATA_KEY);
       sessionStorage.removeItem(PENDING_SCORE_KEY);
+      sessionStorage.removeItem(JOURNEY_ACTIVE_KEY);
       dispatch({ type: 'RESET_GAME' });
     };
     addSignOutCleanup(reset);
@@ -333,9 +371,19 @@ export const useGame = (initialDailyWord: RawDailyData | null = null) => {
   // Handles quiz completion.
   const handleQuizFinish = useCallback(async (finalScore: number, questionResults: boolean[]) => {
     if (!state.data?.date) return;
+    const totalQuestions = state.data.questions.length;
 
-    const scoreData: DailyScore = { score: finalScore, totalQuestions: state.data.questions.length, questionResults };
+    const scoreData: DailyScore = { score: finalScore, totalQuestions, questionResults };
     dispatch({ type: 'FINISH_QUIZ', payload: scoreData });
+
+    if (sessionStorage.getItem(JOURNEY_ACTIVE_KEY) === 'true') {
+      try {
+        await telemetry.endJourney({ complete: true, game: { win: finalScore === totalQuestions, score: finalScore } });
+        sessionStorage.removeItem(JOURNEY_ACTIVE_KEY);
+      } catch (e) {
+        console.error('Failed to end journey on finish:', e);
+      }
+    }
 
     if (state.isOffline) return; // Do not save scores for offline games.
 
@@ -365,6 +413,19 @@ export const useGame = (initialDailyWord: RawDailyData | null = null) => {
       loadDailyData();
     }
   };
+
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (!state.quizFinished && sessionStorage.getItem(JOURNEY_ACTIVE_KEY) === 'true') {
+        telemetry.endJourney({ complete: false });
+        sessionStorage.removeItem(JOURNEY_ACTIVE_KEY);
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [state.quizFinished]);
 
   // Returns game state and handler functions.
   return {

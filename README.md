@@ -66,10 +66,37 @@
 🕹️ **Game:** _coming soon_ | 🗫 **Subreddit:** _[r/linguil](https://reddit.com/r/linguil)_
 
 🔓 **Fetch Domains:**
-Requested Devvit domains:
-- `us-central1-linguil.cloudfunctions.net` — Serves as a secure proxy for handling all backend game logic (including cross-platform authentication, score-saving, user accounts, friends & leaderboards). Required for secure communication and interoperability with the Firebase backend and Firestore relational database (a capability that @devvit/server doesn't support).
+<details>
+<summary>Requested Devvit domains:</summary>
+<br>
+
+- `us-central1-linguil.cloudfunctions.net` — Serves as a secure proxy for handling all backend game logic—required as the game's backend is built using Firebase and Firestore, which are not directly accessible from the Devvit environment. The proxy authenticates requests from the Devvit app and forwards them to the Firestore REST API, allowing for secure authentication, score-saving, user accounts, friends, leaderboards, etc. This architecture is essential for the game's functionality and cross-platform interoperability with non-Reddit users (Redis cannot support the required cross-platform relational data structures). The following API routes are handled by this proxy:
+  - Authentication
+    - `/api/create-user-account`: Creates a new user account in Firebase Authentication and Firestore.
+    - `/api/auth/exchange`: Exchanges a Firebase custom token for a session ID token, and sets a secure, httpOnly cookie to establish a user session.
+    - `/api/auth/logout`: Logs the user out.
+    - `/api/auth/reddit`: Handles user authentication via Reddit.
+  - Game
+    - `/api/audio/*`: Proxies and caches audio files from Google Cloud Storage to the client.
+    - `/api/daily-word`: Fetches all daily game data (including words, languages, families, and statistics) from Firestore.
+    - `/api/game/score`: Handles saving and retrieving user game scores using Firestore.
+  - Payments
+    - `/api/create-checkout-session`: Creates a checkout session for users to purchase linguil+.
+    - `/internal/payments/fulfill`: Adds linguil+ status to a user's account in Firestore after payment.
+    - `/internal/payments/refund`: Removes linguil+ status from a user's account in Firestore after refund.
+    - `/api/verify-payment`: Checks a user's payment status in Firestore for linguil+.
+  - User
+    - `/api/user/add-friend`: Adds a user to the current user's friends list on Firestore.
+    - `/api/user/friends`: Fetches the current user's list of friends on Firestore.
+    - `/api/user/image`: Proxies user Snoovatars from Firestore to the client.
+    - `/api/leaderboard`: Fetches the current user's leaderboard data from Firestore.
+    - `/api/user/me`: Retrieves the current user's profile information from Firestore.
+    - `/api/user/remove-friend`: Removes a user from the current user's friends list on Firestore.
+    - `/api/user/update-name`: Updates the current user's display name.
+  - Misc.
+    - `/api/analytics`: Proxies basic analytics events to GA4.
 - `storage.googleapis.com` — Required for Google TTS audio hosting.
-- `discord.com` — Allows Discord user account sign-ups via OAuth2.
+</details>
 
 ___
 

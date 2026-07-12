@@ -1,18 +1,19 @@
 import type { Hono, Context } from 'hono';
 
-// Only allow proxying of Google and Discord profile picture URLs.
+// Only allow proxying of Reddit profile picture URLs.
 const allowedUrlPatterns = [
-  /^https:\/\/lh3\.googleusercontent\.com\//,
-  /^https:\/\/cdn\.discordapp\.com\//,
+  /^https:\/\/reddit\.com\//,
+  /^https:\/\/redditstatic\.com\//,
+  /^https:\/\/redditmedia\.com\//,
 ];
 
 const isUrlAllowed = (url: string): boolean => {
   return allowedUrlPatterns.some(pattern => pattern.test(url));
 };
 
-// Proxies Google and Discord profile images in Devvit.
+// Proxies Reddit profile images in Devvit.
 export const addImageProxyRoute = (app: Hono) => {
-  app.get('/api/proxy/image', async (c: Context) => {
+  app.get('/api/user/image', async (c: Context) => {
     const imageUrl = c.req.query('url');
 
     // Ensure a URL is provided and it matches the allowed patterns.

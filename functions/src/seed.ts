@@ -17,7 +17,7 @@ import { CsvParsingError, DataValidationError, TtsError as _TtsError } from "./e
 // Latin-only overrides.
 const LATIN_ONLY = ["Amharic", "Vietnamese", "Javanese", "Tagalog", "Turkish", "Hungarian", "Hmong"];
 // Gemini Live API languages.
-const GEMINI_SUPPORTED_LANGS = ["Amharic", "Hausa", "Persian", "Swahili", "Basque"];
+const GEMINI_SUPPORTED_LANGS = ["Amharic", "Hausa", "Persian", "Swahili", "Basque", "Igbo", "Lingala"];
 // Latin-only overrides for Gemini Live API languages.
 const GEMINI_LATIN_ONLY = ["Hausa", "Swahili"];
 
@@ -155,7 +155,7 @@ async function convertPcmToMp3(pcmBuffer: Buffer): Promise<Buffer> {
 
 // Scheduled Cloud Function that runs daily to generate and save a new daily word challenge.
 export const seedDailyWord = onSchedule(
-  { schedule: "every day 00:00", timeoutSeconds: 540, memory: "512MiB", region: "europe-west2" },
+  { schedule: "every day 00:00", timeoutSeconds: 540, memory: "512MiB", region: "europe-west2", secrets: ["GEMINI_API_KEY"] },
   async () => {
     // Initialize Firestore and Text-to-Speech clients.
     const db = getFirestore();
@@ -235,6 +235,9 @@ export const seedDailyWord = onSchedule(
           const wordToSay = GEMINI_LATIN_ONLY.includes(languageName) 
             ? parsedWord.transliteration 
             : (parsedWord.nativeScript || parsedWord.transliteration);
+          
+          // Use Yoruba for Igbo and Kinyarwanda for Lingala as they are unsupported by Gemini Live API.
+          const effectiveLanguage = languageName === "Igbo" ? "Yoruba" : languageName === "Lingala" ? "Kinyarwanda" : languageName;
 
           const chunks: Buffer[] = [];
           const session = await genAI.live.connect({
@@ -255,7 +258,7 @@ export const seedDailyWord = onSchedule(
           });
 
           session.sendRealtimeInput({
-            text: `Say the word "${wordToSay}" in ${languageName}. Output ONLY the audio of the word itself. No greeting, no explanation.`
+            text: `Say the word "${wordToSay}" in ${effectiveLanguage}. Output ONLY the audio of the word itself. No greeting, no explanation.`
           });
 
           await new Promise(resolve => setTimeout(resolve, 4000));
@@ -325,8 +328,7 @@ export const seedDailyWord = onSchedule(
 
       // Combine and shuffle same-family and other-family distractors for the language quiz.
       const langDistractors = shuffleArray(
-        [...new Set(sameFamilyDistractors)]
-          .concat([...new Set(sameRegionDistractors)])
+        [...new Set([...sameFamilyDistractors, ...sameRegionDistractors])]
         , seed + 3)
         .concat(shuffleArray([...new Set(otherFamilyDistractors)], seed + 3.1))
         .slice(0, 3);

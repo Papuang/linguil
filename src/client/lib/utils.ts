@@ -27,8 +27,8 @@ export function getProxiedImageUrl(url: string | null | undefined): string | nul
     return url;
   }
 
-  // In Devvit, all external URLs (including Discord's) must be proxied.
-  return `/api/proxy/image?url=${encodeURIComponent(url)}`;
+  // In Devvit, all external URLs must be proxied.
+  return `/api/user/image?url=${encodeURIComponent(url)}`;
 }
 
 // Generates the daily score share text.

@@ -13,7 +13,7 @@ export const getStripe = () => {
   // If the Stripe client has not been initialized yet, create a new instance.
   if (!stripe) {
     stripe = new Stripe(stripeSecretKey.value(), {
-      apiVersion: "2026-05-27.dahlia", // Specify the Stripe API version.
+      apiVersion: "2026-06-24.dahlia", // Specify the Stripe API version.
       typescript: true, // Enable TypeScript support.
     });
   }

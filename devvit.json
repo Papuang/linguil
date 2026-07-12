@@ -40,12 +40,12 @@
       "enable": true,
       "domains": [
         "us-central1-linguil.cloudfunctions.net",
-        "storage.googleapis.com",
-        "discord.com"
+        "storage.googleapis.com"
       ]
     },
     "redis": true,
-    "payments": true
+    "payments": true,
+    "journeys": true
   },
   "payments": {
     "$schema": "https://developers.reddit.com/schema/products.json",
@@ -109,16 +109,6 @@
         "label": "NEXT_PUBLIC_FIREBASE_CHECKOUT_FUNCTION_URL",
         "defaultValue": "https://us-central1-linguil.cloudfunctions.net/createCheckoutSession"
       },
-      "NEXT_PUBLIC_FIREBASE_DISCORD_AUTH_FUNCTION_URL": {
-        "type": "string",
-        "label": "NEXT_PUBLIC_FIREBASE_DISCORD_AUTH_FUNCTION_URL",
-        "defaultValue": "https://us-central1-linguil.cloudfunctions.net/discordAuth"
-      },
-      "NEXT_PUBLIC_FIREBASE_GOOGLE_AUTH_FUNCTION_URL": {
-        "type": "string",
-        "label": "NEXT_PUBLIC_FIREBASE_GOOGLE_AUTH_FUNCTION_URL",
-        "defaultValue": "https://us-central1-linguil.cloudfunctions.net/googleAuth"
-      },
       "NEXT_PUBLIC_FIREBASE_EMAIL_AUTH_FUNCTION_URL": {
         "type": "string",
         "label": "NEXT_PUBLIC_FIREBASE_EMAIL_AUTH_FUNCTION_URL",
@@ -168,16 +158,6 @@
         "type": "string",
         "label": "FIRESTORE_WRITE_SECRET",
         "isSecret": true
-      },
-      "GOOGLE_CLIENT_SECRET": {
-        "type": "string",
-        "label": "GOOGLE_CLIENT_SECRET",
-        "isSecret": true
-      },
-      "GOOGLE_CLIENT_ID": {
-        "type": "string",
-        "label": "GOOGLE_CLIENT_ID",
-        "defaultValue": "485538549135-voutqeu6201qugkc9jd170pta5akko2d.apps.googleusercontent.com"
       }
     }
   },

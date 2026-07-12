@@ -5,9 +5,7 @@ export * from "./stripe-handlers";
 export * from "./reddit-gold-handlers"
 export * from "./firestore-triggers";
 export { seedDailyWord } from "./seed";
-export * from "./discord-auth";
-export * from "./google-auth";
-export * from "./email-auth";
+export * from "./auth-proxy";
 export * from "./reddit-auth";
 export * from "./analytics-proxy";
 export * from "./firestore-proxy";

@@ -127,7 +127,7 @@ const CountdownTimer = memo(() => {
 CountdownTimer.displayName = 'CountdownTimer';
 
 // Button to start a new game or prompt payment/sign-in.
-const CallToActionButton = memo(({ hasPaid, startOfflineGame, openAuthDialog, user, onPurchaseSuccess }: { hasPaid: boolean, startOfflineGame: () => void, openAuthDialog: () => void, user: any, onPurchaseSuccess: () => Promise<void> }) => {
+const CallToActionButton = memo(({ hasPaid, startOfflineGame, signInWithReddit, user, onPurchaseSuccess }: { hasPaid: boolean, startOfflineGame: () => void, signInWithReddit: () => void, user: any, onPurchaseSuccess: () => Promise<void> }) => {
   // Controls payment dialog visibility.
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
 
@@ -138,7 +138,7 @@ const CallToActionButton = memo(({ hasPaid, startOfflineGame, openAuthDialog, us
       setShowPaymentDialog(true);
     } else {
       // If not signed in, show auth dialog.
-      openAuthDialog();
+      signInWithReddit();
     }
   };
 
@@ -204,7 +204,7 @@ const QuizResults = ({
   isOfflineGame,
 }: QuizResultsProps) => {
   // Auth hook for user and payment status.
-  const { user, hasPaid, openAuthDialog, fetchUserProfile } = useAuth();
+  const { user, hasPaid, signInWithReddit, fetchUserProfile } = useAuth();
   const { toast } = useToast();
   const resultsRef = useRef<HTMLDivElement>(null);
 
@@ -242,7 +242,7 @@ const QuizResults = ({
       await navigator.clipboard.writeText(shareText);
       toast({ title: "Score copied!", description: "Results copied to clipboard." });
     } catch (_err) {
-      // Open share box if clipboard is blocked (e.g., inside Discord iframe).
+      // Open share box if clipboard is blocked (e.g., inside Reddit iframe).
       setShowShareBox(true);
     }
   };
@@ -280,7 +280,7 @@ const QuizResults = ({
           <CallToActionButton 
             hasPaid={hasPaid}
             startOfflineGame={startOfflineGame}
-            openAuthDialog={openAuthDialog}
+            signInWithReddit={signInWithReddit}
             user={user}
             onPurchaseSuccess={fetchUserProfile}
           />

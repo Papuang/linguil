@@ -1,6 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { MemoryRouter as Router, Route, Routes, Link } from 'react-router-dom';
+import { MemoryRouter as Router, Route, Routes, Link, useNavigate } from 'react-router-dom';
 import { ErrorBoundary } from '@/client/components/common/ErrorBoundary';
 import { Button } from "@/client/components/ui/button";
 import { Header } from '@/client/components/common/Header';
@@ -10,6 +10,7 @@ import type { SVGProps } from 'react';
 import '@/client/app/globals.css';
 import { Providers } from '@/client/app/providers';
 import RootLayout from '@/client/app/layout';
+import { telemetry } from '@devvit/analytics/client/reddit';
 
 // Dynamically import components to reduce the initial bundle size.
 const AuthButton = React.lazy(() => import('@/client/components/auth/AuthButton').then(mod => ({ default: mod.AuthButton })));
@@ -30,6 +31,20 @@ const GithubIcon = (props: SVGProps<SVGSVGElement>) => (
 
 // The main landing page, providing options to play, authenticate, toggle dark mode, view the Privacy Policy, and contribute.
 function HomePage() {
+  const navigate = useNavigate();
+  const handlePlayClick = async () => {
+    try {
+      const { receipt } = await telemetry.startJourney();
+      console.log('Journey started:', receipt);
+      sessionStorage.setItem('linguil-journey-active', 'true');
+      navigate('/game');
+    } catch (error) {
+      console.error('Failed to start journey:', error);
+      // Still navigate to the game even if telemetry fails.
+      navigate('/game');
+    }
+  };
+
   return (
     <ErrorBoundary>
       <div className="flex flex-col min-h-screen">
@@ -37,12 +52,12 @@ function HomePage() {
           <Header />
           <h1 className="sr-only">linguil | The daily language guessing game</h1>
           <h2 className="text-xs italic -mb-1 -mt-6 text-center">The daily language guessing game</h2>
-          {/* Link to the main game page. */}
-          <Link to="/game" className="w-full max-w-xs">
-              <Button size="lg" className="w-full bg-primary text-primary-foreground hover:bg-primary/90 text-xl h-14">
-                  Play
-              </Button>
-          </Link>
+          {/* Button to start the game. */}
+          <div className="w-full max-w-xs">
+            <Button size="lg" className="w-full bg-primary text-primary-foreground hover:bg-primary/90 text-xl h-14" onClick={handlePlayClick}>
+                Play
+            </Button>
+          </div>
           {/* Authentication button for users. */}
           <div className="w-full max-w-xs">
             <React.Suspense fallback={<div className="h-10 w-full animate-pulse rounded-md bg-muted" />}>

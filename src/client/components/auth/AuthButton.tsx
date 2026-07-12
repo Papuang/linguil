@@ -15,7 +15,7 @@ import { LoadingSpinner } from '@/client/components/common/LoadingSpinner';
 // Renders a sign-in button or a user avatar with a dropdown, based on auth state.
 const AuthButton = () => {
   // Retrieve auth state and functions from the useAuth hook.
-  const { user, loading, logout, openAuthDialog } = useAuth();
+  const { user, loading, logout, signInWithReddit } = useAuth();
 
   // Display a spinner while authentication status is loading.
   if (loading) {
@@ -55,7 +55,7 @@ const AuthButton = () => {
   }
 
   // If unauthenticated, show a button to open the sign-in dialog.
-  return <Button onClick={openAuthDialog}>Sign in</Button>;
+  return <Button onClick={signInWithReddit}>Sign in</Button>;
 };
 
 AuthButton.displayName = 'AuthButton';

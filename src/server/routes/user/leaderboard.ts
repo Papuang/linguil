@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { restQuery } from '../lib/firestore-rest';
+import { restQuery } from '../../lib/firestore-rest';
 
 export const addLeaderboardRoute = (app: Hono) => {
   app.get('/api/leaderboard', async (c) => {

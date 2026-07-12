@@ -49,7 +49,9 @@
     // Specifies the ECMAScript target version.
     "target": "esnext",
     // Enables compatibility with CommonJS modules.
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    // Explicitly list the @types packages you need for global types.
+    "types": ["node", "react", "react-dom", "js-cookie", "qrcode", "stripe", "body-parser"]
   },
   // Specifies the files to be included in the compilation.
   "include": [
@@ -77,6 +79,6 @@
     "dist",
     "scripts",
     "schemas",
-    ".devvit",
+    ".devvit"
   ]
 }
