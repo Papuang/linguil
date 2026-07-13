@@ -17,6 +17,7 @@ import { GlobalLoadingSpinner } from '@/components/common/GlobalLoadingSpinner';
 import { useToast } from './use-toast';
 import { getAuthErrorMessage } from '@/lib/auth-actions';
 import type { DiscordClientUser, DiscordClientAuthResponse } from '@/lib/discord-auth';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 // Defines the cookie name for the Firebase ID token.
 const FIREBASE_ID_TOKEN_COOKIE = 'firebaseIdToken';
@@ -123,6 +124,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     },
     []
   );
+
+  // Helper to call the CAPI tracking function for new Google/Discord website sign-ups.
+  const trackRegistration = useCallback(async () => {
+    if (isInsideDiscord) return;
+
+    try {
+      const functions = getFunctions();
+      const trackSocialRegistration = httpsCallable(functions, 'trackSocialRegistration');
+      const fbc = localStorage.getItem('_fbc') || undefined;
+      const fbp = Cookies.get('_fbp');
+      await trackSocialRegistration({ fbc, fbp });
+    } catch (error) {
+      console.error("Failed to track social registration via CAPI:", error);
+    }
+  }, [isInsideDiscord]);
 
   const signInWithDiscord = useCallback(async (): Promise<void> => {
     clearAuthError();
@@ -428,6 +444,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setHasPaid(paidStatus);
           Cookies.set(FIREBASE_ID_TOKEN_COOKIE, idTokenResult.token, { expires: 1, secure: true, sameSite: 'none' });
           const isNewUser = getAdditionalUserInfo(userCredential as UserCredential)?.isNewUser ?? false;
+          // Fire CAPI event for new Google website users.
+          if (isNewUser) {
+            trackRegistration();
+          }
           logEvent(isNewUser ? 'sign_up' : 'login', { method: 'google' });
           setIsAuthDialogOpen(false);
         }
@@ -436,7 +456,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setIsGooglePolling(false);
       handleAuthError(error);
     }
-  }, [isInsideDiscord, clearAuthError, handleAuthError, logEvent]);
+  }, [isInsideDiscord, clearAuthError, handleAuthError, logEvent, trackRegistration]);
 
   const signInWithCustomToken = useCallback(async (token: string): Promise<void> => {
     clearAuthError();
@@ -459,13 +479,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const auth = await getFirebaseAuth();
         const userCredential = await firebaseSignInWithCustomToken(auth, token);
         const isNewUser = getAdditionalUserInfo(userCredential)?.isNewUser ?? false;
+        // Fire CAPI event for new Discord website users.
+        if (isNewUser) {
+          trackRegistration();
+        }
         logEvent(isNewUser ? 'sign_up' : 'login', { method: 'discord' });
         setIsAuthDialogOpen(false);
       }
     } catch (error) {
       handleAuthError(error);
     }
-  }, [clearAuthError, handleAuthError, logEvent, isInsideDiscord]);
+  }, [clearAuthError, handleAuthError, logEvent, isInsideDiscord, trackRegistration]);
 
 
   const signInWithEmail = useCallback(async (email: string, password: string): Promise<boolean> => {

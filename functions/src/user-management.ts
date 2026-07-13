@@ -1,6 +1,7 @@
 import * as admin from "firebase-admin";
 import * as functions from "firebase-functions/v1";
 import { onRequest } from "firebase-functions/v2/https";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
 import cookieParser from "cookie-parser";
 import { db } from "./init";
 import { getStripe } from "./stripe";
@@ -8,7 +9,7 @@ import { FacebookAdsApi, UserData, ServerEvent, EventRequest } from "facebook-no
 
 const cookieParserMiddleware = cookieParser();
 
-// Helper function to send the Meta CAPI registration payload securely using the SDK.
+// Helper function to send the Meta CAPI registration payload securely.
 const sendMetaCapiRegistration = async (uid: string, email?: string, extraData?: { fbc?: string; fbp?: string; clientIp?: string; userAgent?: string }) => {
   if (!email) return;
 
@@ -18,7 +19,7 @@ const sendMetaCapiRegistration = async (uid: string, email?: string, extraData?:
   console.log("Attempting to use Pixel ID:", pixelId);
 
   if (!pixelId || !accessToken) {
-    console.warn("Meta CAPI tracking skipped: Pixel ID or Access Token is missing from secrets environment.");
+    console.warn("Meta CAPI tracking skipped: Pixel ID or Access Token is missing.");
     return;
   }
 
@@ -38,21 +39,22 @@ const sendMetaCapiRegistration = async (uid: string, email?: string, extraData?:
       .setEventTime(Math.floor(Date.now() / 1000))
       .setEventSourceUrl("https://linguil.app")
       .setUserData(userData)
+      .setEventId(uid) // Use UID for deduplication
       .setActionSource("website");
 
     const eventsData = [serverEvent];
     const eventRequest = new EventRequest(accessToken, pixelId).setEvents(eventsData);
     
     await eventRequest.execute();
-    console.log("Successfully sent CompleteRegistration event to Meta CAPI via SDK.");
+    console.log("Successfully sent CompleteRegistration event to Meta CAPI.");
 
   } catch (error) {
-    console.error("Failed to post Meta CAPI track request via SDK:", error);
+    console.error("Failed to post Meta CAPI track request:", error);
   }
 };
 
 // Internal function to set up a new user's documents and Stripe customer.
-const setupNewUser = async (user: admin.auth.UserRecord, extraData?: { fbc?: string; fbp?: string; clientIp?: string; userAgent?: string }) => {
+const setupNewUser = async (user: admin.auth.UserRecord) => {
   const userPublicDocRef = db.collection("users_public").doc(user.uid);
   const doc = await userPublicDocRef.get();
 
@@ -91,18 +93,13 @@ const setupNewUser = async (user: admin.auth.UserRecord, extraData?: { fbc?: str
 
     // Commit the batch
     await batch.commit();
-
-    // Trigger the conversion asynchronously.
-    sendMetaCapiRegistration(user.uid, user.email, extraData).catch((err) =>
-      console.error("Meta CAPI async wrapper error logic:", err)
-    );
   }
 };
 
 // Background trigger (v1) to set up a new user.
 export const onUserCreate = functions
   .region("us-central1")
-  .runWith({ secrets: ["STRIPE_SECRET_KEY", "META_CAPI_ACCESS_TOKEN", "META_PIXEL_ID"] })
+  .runWith({ secrets: ["STRIPE_SECRET_KEY"] })
   .auth.user()
   .onCreate((user) => setupNewUser(user));
 
@@ -122,7 +119,7 @@ export const createUserAccount = onRequest(
   (req, res) => {
     cookieParserMiddleware(req, res, async () => {
       // Destructure required parameters from the request body.
-      const { name, email, password } = req.body;
+      const { name, email, password, fbc: fbcBody } = req.body;
 
       // Validate that all required parameters are present.
       if (!name || !email || !password) {
@@ -152,14 +149,17 @@ export const createUserAccount = onRequest(
           displayName: name,
         });
 
-        const fbc = req.cookies?.["_fbc"] as string;
-        const fbp = req.cookies?.["_fbp"] as string;
+        const fbc = fbcBody || req.cookies?.["_fbc"];
+        const fbp = req.cookies?.["_fbp"];
         const clientIp = req.ip;
         const userAgent = req.headers["user-agent"] as string;
 
 
         // Manually call setupNewUser to ensure the displayName is captured correctly.
-        await setupNewUser(userRecord, { fbc, fbp, clientIp, userAgent });
+        await setupNewUser(userRecord);
+
+        // Trigger CAPI event with full request context.
+        sendMetaCapiRegistration(userRecord.uid, userRecord.email, { fbc, fbp, clientIp, userAgent }).catch(console.error);
 
         // Generate a custom token for the client to use for a reliable sign-in.
         const customToken = await admin.auth().createCustomToken(userRecord.uid);
@@ -181,5 +181,30 @@ export const createUserAccount = onRequest(
         res.status(500).send("An unexpected error occurred while creating the user account");
       }
     });
+  }
+);
+
+// Callable function for tracking Google/Discord sign-ups.
+export const trackSocialRegistration = onCall(
+  {
+    region: "us-central1",
+    secrets: ["META_CAPI_ACCESS_TOKEN", "META_PIXEL_ID"],
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "User must be logged in to track registration.");
+    }
+
+    const uid = request.auth.uid;
+    const email = request.auth.token.email;
+    const { fbc, fbp } = request.data;
+    
+    // onCall functions provide IP and User Agent in the raw request context.
+    const clientIp = request.rawRequest.ip;
+    const userAgent = request.rawRequest.headers["user-agent"];
+
+    await sendMetaCapiRegistration(uid, email, { fbc, fbp, clientIp, userAgent });
+
+    return { success: true };
   }
 );

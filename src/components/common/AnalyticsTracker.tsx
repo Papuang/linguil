@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, memo } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import Script from 'next/script';
 
@@ -15,8 +15,27 @@ declare global {
 // Tracks page views, performance, and conversions using Firebase and Meta Pixel.
 const AnalyticsTracker = memo(() => {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { user, isInsideDiscord } = useAuth();
   const metaPixelId = process.env.NEXT_PUBLIC_META_PIXEL_ID;
+
+  // Manually capture Meta Click ID (fbclid).
+  useEffect(() => {
+    if (isInsideDiscord) return;
+
+    const fbclid = searchParams.get('fbclid');
+    if (fbclid && !localStorage.getItem('_fbc')) {
+      // Meta format: fb.subdomainIndex.creationTime.fbclid
+      // Subdomain index is usually 1 for the current domain.
+      const fbcValue = `fb.1.${Date.now()}.${fbclid}`;
+      
+      // Save it to localStorage for retrieval in API requests.
+      localStorage.setItem('_fbc', fbcValue);
+      
+      // Set a 1st-party cookie as a fallback (expires in 90 days).
+      document.cookie = `_fbc=${fbcValue}; path=/; max-age=7776000; SameSite=Lax`; 
+    }
+  }, [searchParams, isInsideDiscord]);
 
   // Initializes services and logs page views.
   useEffect(() => {

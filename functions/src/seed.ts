@@ -15,11 +15,11 @@ import { CsvRow, parseCsvFile, findRowInCsv, parseWord, shuffleArray, getRandomI
 import { CsvParsingError, DataValidationError, TtsError as _TtsError } from "./error";
 
 // Latin-only overrides.
-const LATIN_ONLY = ["Amharic", "Vietnamese", "Javanese", "Tagalog", "Turkish", "Hungarian", "Hmong"];
+const LATIN_ONLY = ["Amharic", "Vietnamese", "Javanese", "Tagalog", "Turkish", "Hungarian", "Hmong", "Yoruba", "Malay", "Sundanese", "Northern Uzbek"];
 // Gemini Live API languages.
-const GEMINI_SUPPORTED_LANGS = ["Amharic", "Hausa", "Persian", "Swahili", "Basque", "Igbo", "Lingala"];
+const GEMINI_SUPPORTED_LANGS = ["Amharic", "Hausa", "Persian", "Swahili", "Basque", "Igbo", "Lingala", "Yoruba", "Northern Uzbek"];
 // Latin-only overrides for Gemini Live API languages.
-const GEMINI_LATIN_ONLY = ["Hausa", "Swahili"];
+const GEMINI_LATIN_ONLY = ["Hausa", "Swahili", "Yoruba", "Northern Uzbek"];
 
 // Defines the structure for the cached language data.
 let languageDataCache: {
@@ -236,8 +236,8 @@ export const seedDailyWord = onSchedule(
             ? parsedWord.transliteration 
             : (parsedWord.nativeScript || parsedWord.transliteration);
           
-          // Use Yoruba for Igbo and Kinyarwanda for Lingala as they are unsupported by Gemini Live API.
-          const effectiveLanguage = languageName === "Igbo" ? "Yoruba" : languageName === "Lingala" ? "Kinyarwanda" : languageName;
+          // Use Yoruba for Igbo, Kinyarwanda for Lingala, and Uzbek for Northern Uzbek as they are unsupported by Gemini Live API.
+          const effectiveLanguage = languageName === "Igbo" ? "Yoruba" : languageName === "Lingala" ? "Kinyarwanda" : languageName === "Northern Uzbek" ? "Uzbek" : languageName;
 
           const chunks: Buffer[] = [];
           const session = await genAI.live.connect({
