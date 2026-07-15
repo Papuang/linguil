@@ -7,8 +7,10 @@ import {
   useContext,
   useRef,
   useCallback,
+  Suspense,
+  type ReactNode,
+  type ComponentType,
 } from 'react';
-import type { ReactNode, ComponentType } from 'react';
 import type { User, UserCredential } from 'firebase/auth';
 import { doc, onSnapshot, type Firestore } from 'firebase/firestore';
 import type { AuthDialogProps } from '@/components/auth/AuthDialog';
@@ -18,6 +20,7 @@ import { useToast } from './use-toast';
 import { getAuthErrorMessage } from '@/lib/auth-actions';
 import type { DiscordClientUser, DiscordClientAuthResponse } from '@/lib/discord-auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
+import { useSearchParams } from 'next/navigation';
 
 // Defines the cookie name for the Firebase ID token.
 const FIREBASE_ID_TOKEN_COOKIE = 'firebaseIdToken';
@@ -48,8 +51,7 @@ interface AuthContextType {
 // Creates the authentication context.
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Provides authentication context to the application.
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
+const AuthProviderContent = ({ children }: { children: ReactNode }) => {
   // State for the current user.
   const [user, setUser] = useState<User | null>(null);
   const [discordClientUser, setDiscordClientUser] = useState<DiscordClientUser | null>(null);
@@ -75,6 +77,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [hasMounted, setHasMounted] = useState(false);
   const [isGooglePolling, setIsGooglePolling] = useState(false);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const searchParams = useSearchParams();
 
   const cancelGooglePolling = useCallback(() => {
     setIsGooglePolling(false);
@@ -134,11 +137,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const trackSocialRegistration = httpsCallable(functions, 'trackSocialRegistration');
       const fbc = localStorage.getItem('_fbc') || undefined;
       const fbp = Cookies.get('_fbp');
-      await trackSocialRegistration({ fbc, fbp });
+      const leadId = searchParams.get('lead_id') || undefined;
+      await trackSocialRegistration({ fbc, fbp, leadId });
     } catch (error) {
       console.error("Failed to track social registration via CAPI:", error);
     }
-  }, [isInsideDiscord]);
+  }, [isInsideDiscord, searchParams]);
 
   const signInWithDiscord = useCallback(async (): Promise<void> => {
     clearAuthError();
@@ -540,12 +544,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return false;
     }
     try {
+      const leadId = searchParams.get('lead_id') || undefined;
       if (isInsideDiscord) {
         // 1. Call your original cloud function to create the user & get custom token.
         const createRes = await fetch('/api/create-user-account', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, email, password })
+          body: JSON.stringify({ name, email, password, leadId })
         });
         const createData = await createRes.json();
         
@@ -573,7 +578,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } else {
         // Browser: Standard sign-up.
         const { handleSignUpWithEmail } = await import('@/lib/auth-actions');
-        const userCredential = await handleSignUpWithEmail(name, email, password);
+        const userCredential = await handleSignUpWithEmail(name, email, password, { leadId });
         const user = userCredential.user;
         const idTokenResult = await user.getIdTokenResult();
         setUser(user);
@@ -587,7 +592,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       handleAuthError(error);
       return false;
     }
-  }, [isInsideDiscord, clearAuthError, handleAuthError, logEvent]);
+  }, [isInsideDiscord, clearAuthError, handleAuthError, logEvent, searchParams]);
 
   // Handles password reset requests.
   const resetPassword = useCallback(
@@ -681,6 +686,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       {/* Dynamically render the AuthDialog when needed. */}
       {AuthDialog && <AuthDialog open={isAuthDialogOpen} onOpenChange={setIsAuthDialogOpen} />}
     </AuthContext.Provider>
+  );
+};
+
+// Provides authentication context to the application.
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  return (
+    <Suspense>
+      <AuthProviderContent>{children}</AuthProviderContent>
+    </Suspense>
   );
 };
 

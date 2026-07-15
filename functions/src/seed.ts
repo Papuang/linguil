@@ -15,9 +15,9 @@ import { CsvRow, parseCsvFile, findRowInCsv, parseWord, shuffleArray, getRandomI
 import { CsvParsingError, DataValidationError, TtsError as _TtsError } from "./error";
 
 // Latin-only overrides.
-const LATIN_ONLY = ["Amharic", "Vietnamese", "Javanese", "Tagalog", "Turkish", "Hungarian", "Hmong", "Yoruba", "Malay", "Sundanese", "Northern Uzbek"];
+const LATIN_ONLY = ["Amharic", "Vietnamese", "Javanese", "Tagalog", "Turkish", "Hungarian", "Hmong", "Yoruba", "Malay", "Sundanese", "Northern Uzbek", "Mongolian", "Burmese", "Odia"];
 // Gemini Live API languages.
-const GEMINI_SUPPORTED_LANGS = ["Amharic", "Hausa", "Persian", "Swahili", "Basque", "Igbo", "Lingala", "Yoruba", "Northern Uzbek"];
+const GEMINI_SUPPORTED_LANGS = ["Amharic", "Hausa", "Persian", "Swahili", "Basque", "Igbo", "Lingala", "Yoruba", "Northern Uzbek", "Sindhi", "Saraiki", "Mongolian", "Burmese", "Odia", "Nepali"];
 // Latin-only overrides for Gemini Live API languages.
 const GEMINI_LATIN_ONLY = ["Hausa", "Swahili", "Yoruba", "Northern Uzbek"];
 
@@ -236,8 +236,12 @@ export const seedDailyWord = onSchedule(
             ? parsedWord.transliteration 
             : (parsedWord.nativeScript || parsedWord.transliteration);
           
-          // Use Yoruba for Igbo, Kinyarwanda for Lingala, and Uzbek for Northern Uzbek as they are unsupported by Gemini Live API.
-          const effectiveLanguage = languageName === "Igbo" ? "Yoruba" : languageName === "Lingala" ? "Kinyarwanda" : languageName === "Northern Uzbek" ? "Uzbek" : languageName;
+          // Use Yoruba for Igbo, Kinyarwanda for Lingala, Uzbek for Northern Uzbek, and Sindhi for Saraiki as they are unsupported by Gemini Live API.
+          const effectiveLanguage = languageName ===
+          "Igbo" ? "Yoruba" : languageName ===
+          "Lingala" ? "Kinyarwanda" : languageName ===
+          "Northern Uzbek" ? "Uzbek" : languageName ===
+          "Saraiki" ? "Sindhi" : languageName;
 
           const chunks: Buffer[] = [];
           const session = await genAI.live.connect({
