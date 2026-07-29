@@ -1,6 +1,32 @@
 import * as admin from "firebase-admin";
 import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { db } from "./init";
+import { sendMetaCapiRegistration } from "./user-management";
+
+// Firestore trigger that sends a Meta CAPI CRM Lead event when a new 'users' document is created.
+export const onUserDocumentCreate = onDocumentCreated({ document: "users/{userId}", region: "us-central1" }, async (event) => {
+    try {
+        if (!event.data) return;
+
+        const data = event.data.data();
+        const userId = event.params.userId;
+
+        // Check if the essential data is present.
+        if (!data.email || !userId) {
+            console.warn(`onUserDocumentCreate trigger for user ${userId} missing email.`);
+            return;
+        }
+
+        await sendMetaCapiRegistration(userId, data.email, {
+             leadId: data.metaLeadId, 
+             fbc: data.fbc,
+             fbp: data.fbp
+        });
+
+    } catch (err) {
+        console.error(`Error in onUserDocumentCreate for user ${event.params.userId}:`, err);
+    }
+});
 
 // Firestore trigger that updates a user's aggregated scores when a new daily score is created.
 export const onDailyScoreCreate = onDocumentCreated({ document: "users/{userId}/dailyScores/{dailyScoreId}", region: "us-central1" }, async (event) => {

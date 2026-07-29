@@ -1,6 +1,7 @@
 'use client';
 
 import type { UserCredential } from 'firebase/auth';
+import Cookies from 'js-cookie';
 
 // Maps Firebase auth error codes to user-friendly messages.
 export const getAuthErrorMessage = (error: unknown): string => {
@@ -82,13 +83,14 @@ export const handleSignInWithEmail = async (email: string, password: string): Pr
 
 // Creates a new user by calling the backend proxy, then signs them in.
 export const handleSignUpWithEmail = async (name: string, email: string, password: string, extraData?: { leadId?: string }): Promise<UserCredential> => {
-  // Pass fbc value from localStorage to the backend for CAPI.
-  const fbc = localStorage.getItem('_fbc') || undefined;
+  // Pass fbc and fbp values from the client to the backend for CAPI.
+  const fbc = Cookies.get('_fbc') || undefined;
+  const fbp = Cookies.get('_fbp') || undefined;
 
   const response = await fetch('/api/create-user-account', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, email, password, fbc, leadId: extraData?.leadId }),
+    body: JSON.stringify({ name, email, password, fbc, fbp, leadId: extraData?.leadId }),
   });
 
   const data = await response.json();

@@ -135,7 +135,7 @@ const AuthProviderContent = ({ children }: { children: ReactNode }) => {
     try {
       const functions = getFunctions();
       const trackSocialRegistration = httpsCallable(functions, 'trackSocialRegistration');
-      const fbc = localStorage.getItem('_fbc') || undefined;
+      const fbc = Cookies.get('_fbc') || undefined;
       const fbp = Cookies.get('_fbp');
       const leadId = searchParams.get('lead_id') || undefined;
       await trackSocialRegistration({ fbc, fbp, leadId });

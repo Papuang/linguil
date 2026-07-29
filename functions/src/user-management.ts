@@ -10,7 +10,7 @@ import { FacebookAdsApi, UserData, ServerEvent, EventRequest } from "facebook-no
 const cookieParserMiddleware = cookieParser();
 
 // Helper function to send the Meta CAPI registration payload securely.
-const sendMetaCapiRegistration = async (
+export const sendMetaCapiRegistration = async (
   uid: string, 
   email?: string, 
   extraData?: { 
@@ -46,8 +46,9 @@ const sendMetaCapiRegistration = async (
       userData.setLeadId(extraData.leadId);
     }
 
-    // If a leadId is present, this is a CRM event, so the event name should be "Lead".
-    const eventName = extraData?.leadId ? "Lead" : "CompleteRegistration";
+    const isCrmEvent = !!extraData?.leadId;
+    const eventName = isCrmEvent ? "CompleteRegistration" : "CompleteRegistration";
+    const actionSource = isCrmEvent ? "system_generated" : "website";
 
     const serverEvent = new ServerEvent()
       .setEventName(eventName)
@@ -55,15 +56,14 @@ const sendMetaCapiRegistration = async (
       .setEventSourceUrl("https://linguil.app")
       .setUserData(userData)
       .setEventId(uid) // Use UID for deduplication
-      .setActionSource(extraData?.leadId ? "system_generated" : "website");
+      .setActionSource(actionSource);
 
     // For CRM events, add the required custom_data fields.
-    if (extraData?.leadId) {
-      // `as any` is necessary as the types are out of sync with the API requirements.
+    if (isCrmEvent) {
       serverEvent.setCustomData({
         event_source: "crm",
         lead_event_source: "Firestore"
-      } as any);
+      } as any); // Use `as any` to override outdated SDK types.
     }
 
     const eventsData = [serverEvent];
@@ -74,11 +74,15 @@ const sendMetaCapiRegistration = async (
 
   } catch (error) {
     console.error("Failed to post Meta CAPI track request:", error);
+    const typedError = error as { response?: { data: any } };
+    if (typedError.response?.data) {
+      console.error("Meta CAPI Error Body:", JSON.stringify(typedError.response.data, null, 2));
+    }
   }
 };
 
 // Internal function to set up a new user's documents and Stripe customer.
-const setupNewUser = async (user: admin.auth.UserRecord, extraData?: { leadId?: string }) => {
+const setupNewUser = async (user: admin.auth.UserRecord, extraData?: { leadId?: string, fbc?: string, fbp?: string }) => {
   const userPublicDocRef = db.collection("users_public").doc(user.uid);
   const doc = await userPublicDocRef.get();
 
@@ -100,7 +104,9 @@ const setupNewUser = async (user: admin.auth.UserRecord, extraData?: { leadId?: 
       stripeCustomerId: customer.id,
       email: user.email,
       hasPaid: false,
-      metaLeadId: extraData?.leadId || null
+      metaLeadId: extraData?.leadId || null,
+      fbc: extraData?.fbc || null,
+      fbp: extraData?.fbp || null,
     });
 
     // Set the public user document.
@@ -144,7 +150,7 @@ export const createUserAccount = onRequest(
   (req, res) => {
     cookieParserMiddleware(req, res, async () => {
       // Destructure required parameters from the request body.
-      const { name, email, password, fbc: fbcBody, leadId } = req.body;
+      const { name, email, password, fbc: fbcBody, fbp: fbpBody, leadId } = req.body;
 
       // Validate that all required parameters are present.
       if (!name || !email || !password) {
@@ -175,13 +181,13 @@ export const createUserAccount = onRequest(
         });
 
         const fbc = fbcBody || req.cookies?.["_fbc"];
-        const fbp = req.cookies?.["_fbp"];
+        const fbp = fbpBody || req.cookies?.["_fbp"];
         const clientIp = req.ip;
         const userAgent = req.headers["user-agent"] as string;
 
 
         // Manually call setupNewUser to ensure the displayName is captured correctly.
-        await setupNewUser(userRecord, { leadId });
+        await setupNewUser(userRecord, { leadId, fbc, fbp });
 
         // Trigger CAPI event with full request context.
         sendMetaCapiRegistration(userRecord.uid, userRecord.email, { fbc, fbp, clientIp, userAgent, leadId }).catch(console.error);
@@ -228,10 +234,14 @@ export const trackSocialRegistration = onCall(
     const clientIp = request.rawRequest.ip;
     const userAgent = request.rawRequest.headers["user-agent"];
 
-    if (leadId) {
+    if (leadId || fbc || fbp) {
       const userDocRef = db.collection("users").doc(uid);
-      // Update the user document with the leadId.
-      await userDocRef.set({ metaLeadId: leadId }, { merge: true });
+      // Update the user document with the leadId and tracking codes.
+      await userDocRef.set({ 
+          metaLeadId: leadId,
+          fbc: fbc,
+          fbp: fbp,
+      }, { merge: true });
     }
 
     await sendMetaCapiRegistration(uid, email, { fbc, fbp, clientIp, userAgent, leadId });
