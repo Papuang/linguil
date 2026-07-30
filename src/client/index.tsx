@@ -91,19 +91,19 @@ function HomePage() {
 
         {/* GitHub link. */}
         <div className="fixed bottom-20 right-3 z-1 transform-gpu">
-          <Button asChild variant="ghost" className="h-7 w-min text-primary-foreground bg-muted hover:bg-muted/90 hover:text-primary-foreground/90">
+          <Button asChild variant="ghost" className="h-7 w-37 text-primary-foreground bg-muted hover:bg-muted/90 hover:text-primary-foreground/90">
             <a href="https://github.com/linguil/linguil"
             target="_blank"
             rel="noopener noreferrer"
-            aria-label="Contribute on GitHub">
+            aria-label="Add a new language on GitHub">
               <GithubIcon />
-              <span className="text-sm font-medium">Contribute</span>
+              <span className="text-sm font-medium">Add a language</span>
             </a>
           </Button>
         </div>
         {/* Discord link */}
         <div className="fixed bottom-20 left-3 z-1 transform-gpu">
-            <Button asChild variant="ghost" className="h-7 w-min text-primary-foreground bg-muted hover:bg-muted/90 hover:text-primary-foreground/90">
+            <Button asChild variant="ghost" className="h-7 w-37 text-primary-foreground bg-muted hover:bg-muted/90 hover:text-primary-foreground/90">
                 <a href="https://discord.com/discovery/applications/1473406949792940247"
                 target="_blank"
                 rel="noopener noreferrer"
