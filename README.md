@@ -108,5 +108,6 @@ ___
   
 - ***Xeon ([@xeontheprotogen](http://github.com/xeontheprotogen))*** — Added Hungarian
 - ***Shaheed Headley ([@ObsidioSteel](https://github.com/ObsidioSteel))*** — Added Finnish, Estonian, Czech & Slovak
+- ***fw ([@thefrankwan](https://github.com/thefrankwan))*** — Added Greek 
 
 ___
