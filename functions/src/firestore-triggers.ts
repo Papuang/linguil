@@ -4,7 +4,7 @@ import { db } from "./init";
 import { sendMetaCapiRegistration } from "./user-management";
 
 // Firestore trigger that sends a Meta CAPI CRM Lead event when a new 'users' document is created.
-export const onUserDocumentCreate = onDocumentCreated({ document: "users/{userId}", region: "us-central1" }, async (event) => {
+export const onUserDocumentCreate = onDocumentCreated({ document: "users/{userId}", region: "us-central1", secrets: ["META_CAPI_ACCESS_TOKEN", "META_PIXEL_ID"] }, async (event) => {
     try {
         if (!event.data) return;
 
