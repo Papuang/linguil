@@ -99,11 +99,17 @@ export const onUserUpdate = onDocumentUpdated(
         !beforeData?.metaLeadId && Boolean(afterData?.metaLeadId);
 
       if (leadAttached && afterData?.email) {
-        await sendMetaCapiRegistration(userId, afterData.email, {
+        console.log("Firestore CRM CAPI dispatched", {
+          uid: userId,
+          hasLeadId: Boolean(afterData.metaLeadId),
+          actionSource: "system_generated",
+        });
+        const response = await sendMetaCapiRegistration(userId, afterData.email, {
           leadId: afterData.metaLeadId,
           fbc: afterData.fbc,
           fbp: afterData.fbp,
         });
+        console.log("Meta CAPI Response:", response);
       }
 
       // Exit if the 'hasPaid' status hasn't changed or there's no 'after' data.

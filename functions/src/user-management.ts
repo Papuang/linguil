@@ -69,8 +69,9 @@ export const sendMetaCapiRegistration = async (
     const eventsData = [serverEvent];
     const eventRequest = new EventRequest(accessToken, pixelId).setEvents(eventsData);
     
-    await eventRequest.execute();
+    const response = await eventRequest.execute();
     console.log(`Successfully sent ${eventName} event to Meta CAPI.`);
+    return response;
 
   } catch (error) {
     console.error("Failed to post Meta CAPI track request:", error);
@@ -78,6 +79,7 @@ export const sendMetaCapiRegistration = async (
     if (typedError.response?.data) {
       console.error("Meta CAPI Error Body:", JSON.stringify(typedError.response.data, null, 2));
     }
+    return
   }
 };
 
