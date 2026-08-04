@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, memo } from 'react';
+import { useState, useCallback, memo, useEffect } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -21,16 +21,26 @@ const EmailAuthForm = memo(({ onShowPasswordReset }: EmailAuthFormProps) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Re-enable form if an error occurs.
+  useEffect(() => {
+    if (authError) {
+      setIsSubmitting(false);
+    }
+  }, [authError]);
 
   // Handles the sign-in form submission.
   const handleSignIn = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
     signInWithEmail(email, password);
   }, [signInWithEmail, email, password]);
 
   // Handles the sign-up form submission.
   const handleSignUp = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
     signUpWithEmail(name, email, password);
   }, [signUpWithEmail, name, email, password]);
 
@@ -59,6 +69,7 @@ const EmailAuthForm = memo(({ onShowPasswordReset }: EmailAuthFormProps) => {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="col-span-3 italic"
+                disabled={isSubmitting}
             />
             </div>
             {/* Email input. */}
@@ -72,6 +83,7 @@ const EmailAuthForm = memo(({ onShowPasswordReset }: EmailAuthFormProps) => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="col-span-3"
+                disabled={isSubmitting}
             />
             </div>
             {/* Password input. */}
@@ -85,19 +97,20 @@ const EmailAuthForm = memo(({ onShowPasswordReset }: EmailAuthFormProps) => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="col-span-3"
+                disabled={isSubmitting}
             />
             </div>
         </div>
         {/* Button to show the password reset form. */}
         <div className="flex justify-end -mt-3 mb-4">
-            <button type="button" onClick={onShowPasswordReset} className="text-sm text-blue-500 hover:underline">Forgot your password?</button>
+            <button type="button" onClick={onShowPasswordReset} className="text-sm text-blue-500 hover:underline" disabled={isSubmitting}>Forgot your password?</button>
         </div>
         {/* Display authentication errors if any. */}
         {authError && <p className="text-red-500 text-sm col-span-4 text-center mb-2">{authError}</p>}
         {/* Action buttons for sign-up and sign-in. */}
         <div className="flex justify-end gap-4">
-            <Button type="button" className="w-full" onClick={handleSignUp}>Sign up</Button>
-            <Button type="submit" className="w-full">Sign in</Button>
+            <Button type="button" className="w-full" onClick={handleSignUp} disabled={isSubmitting}>Sign up</Button>
+            <Button type="submit" className="w-full" disabled={isSubmitting}>Sign in</Button>
         </div>
         </form>
     </>

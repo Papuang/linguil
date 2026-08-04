@@ -11,13 +11,13 @@ const cookieParserMiddleware = cookieParser();
 
 // Helper function to send the Meta CAPI registration payload securely.
 export const sendMetaCapiRegistration = async (
-  uid: string, 
-  email?: string, 
-  extraData?: { 
-    fbc?: string; 
-    fbp?: string; 
-    clientIp?: string; 
-    userAgent?: string; 
+  uid: string,
+  email?: string,
+  extraData?: {
+    fbc?: string;
+    fbp?: string;
+    clientIp?: string;
+    userAgent?: string;
     leadId?: string;
   }
 ) => {
@@ -84,7 +84,17 @@ export const sendMetaCapiRegistration = async (
 // Internal function to set up a new user's documents and Stripe customer.
 const setupNewUser = async (user: admin.auth.UserRecord, extraData?: { leadId?: string, fbc?: string, fbp?: string }) => {
   const userPublicDocRef = db.collection("users_public").doc(user.uid);
+  const userDocRef = db.collection("users").doc(user.uid);
   const doc = await userPublicDocRef.get();
+
+  // Merge tracking fields if supplied.
+  if (extraData) {
+    await userDocRef.set({
+      metaLeadId: extraData.leadId,
+      fbc: extraData.fbc,
+      fbp: extraData.fbp,
+    }, { merge: true });
+  }
 
   // Only proceed if the user's public document does not already exist.
   if (!doc.exists) {
@@ -99,15 +109,11 @@ const setupNewUser = async (user: admin.auth.UserRecord, extraData?: { leadId?: 
     });
 
     // Set the private user document.
-    const userDocRef = db.collection("users").doc(user.uid);
     batch.set(userDocRef, {
       stripeCustomerId: customer.id,
       email: user.email,
       hasPaid: false,
-      metaLeadId: extraData?.leadId || null,
-      fbc: extraData?.fbc || null,
-      fbp: extraData?.fbp || null,
-    });
+    }, { merge: true });
 
     // Set the public user document.
     batch.set(userPublicDocRef, {
@@ -238,9 +244,9 @@ export const trackSocialRegistration = onCall(
       const userDocRef = db.collection("users").doc(uid);
       // Update the user document with the leadId and tracking codes.
       await userDocRef.set({ 
-          metaLeadId: leadId,
-          fbc: fbc,
-          fbp: fbp,
+        metaLeadId: leadId,
+        fbc: fbc,
+        fbp: fbp,
       }, { merge: true });
     }
 

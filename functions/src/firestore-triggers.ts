@@ -5,27 +5,27 @@ import { sendMetaCapiRegistration } from "./user-management";
 
 // Firestore trigger that sends a Meta CAPI CRM Lead event when a new 'users' document is created.
 export const onUserDocumentCreate = onDocumentCreated({ document: "users/{userId}", region: "us-central1", secrets: ["META_CAPI_ACCESS_TOKEN", "META_PIXEL_ID"] }, async (event) => {
-    try {
-        if (!event.data) return;
+  try {
+    if (!event.data) return;
 
-        const data = event.data.data();
-        const userId = event.params.userId;
+    const data = event.data.data();
+    const userId = event.params.userId;
 
-        // Check if the essential data is present.
-        if (!data.email || !userId) {
-            console.warn(`onUserDocumentCreate trigger for user ${userId} missing email.`);
-            return;
-        }
-
-        await sendMetaCapiRegistration(userId, data.email, {
-             leadId: data.metaLeadId, 
-             fbc: data.fbc,
-             fbp: data.fbp
-        });
-
-    } catch (err) {
-        console.error(`Error in onUserDocumentCreate for user ${event.params.userId}:`, err);
+    // Check if the essential data is present.
+    if (!data.email || !userId) {
+      console.warn(`onUserDocumentCreate trigger for user ${userId} missing email.`);
+      return;
     }
+
+    await sendMetaCapiRegistration(userId, data.email, {
+      leadId: data.metaLeadId, 
+      fbc: data.fbc,
+      fbp: data.fbp
+    });
+
+  } catch (err) {
+    console.error(`Error in onUserDocumentCreate for user ${event.params.userId}:`, err);
+  }
 });
 
 // Firestore trigger that updates a user's aggregated scores when a new daily score is created.
@@ -79,30 +79,46 @@ export const onDailyScoreCreate = onDocumentCreated({ document: "users/{userId}/
 });
 
 // Firestore trigger to synchronize the 'hasPaid' status with Firebase Auth custom claims.
-export const onUserUpdate = onDocumentUpdated({ document: "users/{userId}", region: "us-central1" }, async (event) => {
-  try {
-    // Exit if there's no event data.
-    if (!event.data) {
-      return;
+export const onUserUpdate = onDocumentUpdated(
+  {
+    document: "users/{userId}",
+    region: "us-central1",
+    secrets: ["META_CAPI_ACCESS_TOKEN", "META_PIXEL_ID"],
+  },
+  async (event) => {
+    try {
+      // Exit if there's no event data.
+      if (!event.data) return;
+
+      // Get the data before and after the update.
+      const beforeData = event.data.before.data();
+      const afterData = event.data.after.data();
+      const userId = event.params.userId;
+
+      const leadAttached =
+        !beforeData?.metaLeadId && Boolean(afterData?.metaLeadId);
+
+      if (leadAttached && afterData?.email) {
+        await sendMetaCapiRegistration(userId, afterData.email, {
+          leadId: afterData.metaLeadId,
+          fbc: afterData.fbc,
+          fbp: afterData.fbp,
+        });
+      }
+
+      // Exit if the 'hasPaid' status hasn't changed or there's no 'after' data.
+      if (beforeData?.hasPaid === afterData?.hasPaid || !afterData) {
+        return;
+      }
+      
+      // Determine the new 'hasPaid' status.
+      const hasPaid = afterData.hasPaid === true;
+
+      // Update the custom claims on the user's auth token.
+      const user = await admin.auth().getUser(userId);
+      await admin.auth().setCustomUserClaims(userId, { ...user.customClaims, hasPaid: hasPaid });
+    } catch (err) {
+      console.error(`Error in onUserUpdate for user ${event.params.userId}:`, err);
     }
-
-    // Get the data before and after the update.
-    const beforeData = event.data.before.data();
-    const afterData = event.data.after.data();
-    const userId = event.params.userId;
-
-    // Exit if the 'hasPaid' status hasn't changed or there's no 'after' data.
-    if (beforeData?.hasPaid === afterData?.hasPaid || !afterData) {
-      return;
-    }
-
-    // Determine the new 'hasPaid' status.
-    const hasPaid = afterData.hasPaid === true;
-
-    // Update the custom claims on the user's auth token.
-    const user = await admin.auth().getUser(userId);
-    await admin.auth().setCustomUserClaims(userId, { ...user.customClaims, hasPaid: hasPaid });
-  } catch {
-    // Silently catch errors to prevent function crashes from non-critical sync issues.
   }
-});
+);

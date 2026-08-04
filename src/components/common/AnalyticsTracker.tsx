@@ -38,7 +38,7 @@ const AnalyticsTracker = memo(() => {
           const fbcValue = `fb.1.${Date.now()}.${fbclid}`;
           Cookies.set('_fbc', fbcValue, { expires: 90, path: '/', sameSite: 'Lax' });
         }
-    } catch (e) {}
+    } catch (_e) {}
 
     // 2. Ensure the _fbp cookie is set.
     try {
@@ -47,7 +47,7 @@ const AnalyticsTracker = memo(() => {
           const newFbp = generateFbp();
           Cookies.set('_fbp', newFbp, { expires: 90, path: '/', sameSite: 'Lax' });
         }
-    } catch (e) {}
+    } catch (_e) {}
     
   }, [searchParams, isInsideDiscord]);
 
