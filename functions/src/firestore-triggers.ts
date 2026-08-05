@@ -20,7 +20,9 @@ export const onUserDocumentCreate = onDocumentCreated({ document: "users/{userId
     await sendMetaCapiRegistration(userId, data.email, {
       leadId: data.metaLeadId, 
       fbc: data.fbc,
-      fbp: data.fbp
+      fbp: data.fbp,
+      clientIp: data.clientIp,
+      userAgent: data.userAgent
     });
 
   } catch (err) {
@@ -108,6 +110,8 @@ export const onUserUpdate = onDocumentUpdated(
           leadId: afterData.metaLeadId,
           fbc: afterData.fbc,
           fbp: afterData.fbp,
+          clientIp: afterData.clientIp,
+          userAgent: afterData.userAgent,
         });
         console.log("Meta CAPI Response:", response);
       }

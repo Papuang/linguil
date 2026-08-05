@@ -79,23 +79,28 @@ export const sendMetaCapiRegistration = async (
     if (typedError.response?.data) {
       console.error("Meta CAPI Error Body:", JSON.stringify(typedError.response.data, null, 2));
     }
-    return
+    return;
   }
 };
 
 // Internal function to set up a new user's documents and Stripe customer.
-const setupNewUser = async (user: admin.auth.UserRecord, extraData?: { leadId?: string, fbc?: string, fbp?: string }) => {
+const setupNewUser = async (user: admin.auth.UserRecord, extraData?: { leadId?: string, fbc?: string, fbp?: string, clientIp?: string, userAgent?: string }) => {
   const userPublicDocRef = db.collection("users_public").doc(user.uid);
   const userDocRef = db.collection("users").doc(user.uid);
   const doc = await userPublicDocRef.get();
 
   // Merge tracking fields if supplied.
   if (extraData) {
-    await userDocRef.set({
-      metaLeadId: extraData.leadId,
-      fbc: extraData.fbc,
-      fbp: extraData.fbp,
-    }, { merge: true });
+    const dataToSet: any = {};
+    if (extraData.leadId) dataToSet.metaLeadId = extraData.leadId;
+    if (extraData.fbc) dataToSet.fbc = extraData.fbc;
+    if (extraData.fbp) dataToSet.fbp = extraData.fbp;
+    if (extraData.clientIp) dataToSet.clientIp = extraData.clientIp;
+    if (extraData.userAgent) dataToSet.userAgent = extraData.userAgent;
+
+    if (Object.keys(dataToSet).length > 0) {
+      await userDocRef.set(dataToSet, { merge: true });
+    }
   }
 
   // Only proceed if the user's public document does not already exist.
@@ -195,7 +200,7 @@ export const createUserAccount = onRequest(
 
 
         // Manually call setupNewUser to ensure the displayName is captured correctly.
-        await setupNewUser(userRecord, { leadId, fbc, fbp });
+        await setupNewUser(userRecord, { leadId, fbc, fbp, clientIp, userAgent });
 
         // Trigger CAPI event with full request context.
         sendMetaCapiRegistration(userRecord.uid, userRecord.email, { fbc, fbp, clientIp, userAgent, leadId }).catch(console.error);
@@ -242,14 +247,17 @@ export const trackSocialRegistration = onCall(
     const clientIp = request.rawRequest.ip;
     const userAgent = request.rawRequest.headers["user-agent"];
 
-    if (leadId || fbc || fbp) {
+    const dataToSet: any = {};
+    if (leadId) dataToSet.metaLeadId = leadId;
+    if (fbc) dataToSet.fbc = fbc;
+    if (fbp) dataToSet.fbp = fbp;
+    if (clientIp) dataToSet.clientIp = clientIp;
+    if (userAgent) dataToSet.userAgent = userAgent;
+
+    if (Object.keys(dataToSet).length > 0) {
       const userDocRef = db.collection("users").doc(uid);
       // Update the user document with the leadId and tracking codes.
-      await userDocRef.set({ 
-        metaLeadId: leadId,
-        fbc: fbc,
-        fbp: fbp,
-      }, { merge: true });
+      await userDocRef.set(dataToSet, { merge: true });
     }
 
     await sendMetaCapiRegistration(uid, email, { fbc, fbp, clientIp, userAgent, leadId });
