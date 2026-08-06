@@ -19,7 +19,7 @@ import { GlobalLoadingSpinner } from '@/components/common/GlobalLoadingSpinner';
 import { useToast } from './use-toast';
 import { getAuthErrorMessage } from '@/lib/auth-actions';
 import type { DiscordClientUser, DiscordClientAuthResponse } from '@/lib/discord-auth';
-import { getFunctions, httpsCallable } from 'firebase/functions';
+import { httpsCallable } from 'firebase/functions';
 import { useSearchParams } from 'next/navigation';
 
 // Defines the cookie name for the Firebase ID token.
@@ -133,7 +133,8 @@ const AuthProviderContent = ({ children }: { children: ReactNode }) => {
     if (isInsideDiscord) return;
 
     try {
-      const functions = getFunctions();
+      const { getFirebaseFunctions } = await import('@/lib/firebase/firebase');
+      const functions = await getFirebaseFunctions();
       const trackSocialRegistration = httpsCallable(functions, 'trackSocialRegistration');
       const fbc = Cookies.get('_fbc') || undefined;
       const fbp = Cookies.get('_fbp');

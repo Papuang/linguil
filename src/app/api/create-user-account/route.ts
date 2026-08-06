@@ -17,6 +17,8 @@ export async function POST(req: NextRequest) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'User-Agent': req.headers.get('user-agent') ?? '',
+        'X-Forwarded-For': req.headers.get('x-forwarded-for') ?? '',
       },
       body: JSON.stringify(body),
     });

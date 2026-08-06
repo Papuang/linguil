@@ -9,23 +9,42 @@ import { FacebookAdsApi, UserData, ServerEvent, EventRequest } from "facebook-no
 
 const cookieParserMiddleware = cookieParser();
 
+type MetaActionSource = "website" | "system_generated";
+
+type RegistrationTrackingContext = {
+  leadId?: string;
+  fbc?: string;
+  fbp?: string;
+  clientIp?: string;
+  userAgent?: string;
+};
+
+const registrationEventId = (uid: string) => `registration:${uid}`;
+
+const getClientIp = (req: any): string | undefined => {
+  const forwarded = req.headers?.["x-forwarded-for"];
+  const forwardedValue = Array.isArray(forwarded) ? forwarded[0] : forwarded;
+
+  if (typeof forwardedValue === "string" && forwardedValue.trim()) {
+    return forwardedValue.split(",")[0].trim();
+  }
+
+  return req.ip;
+};
+
 // Helper function to send the Meta CAPI registration payload securely.
 export const sendMetaCapiRegistration = async (
   uid: string,
-  email?: string,
-  extraData?: {
-    fbc?: string;
-    fbp?: string;
-    clientIp?: string;
-    userAgent?: string;
-    leadId?: string;
+  email: string | undefined,
+  extraData: RegistrationTrackingContext & {
+    eventId: string;
+    actionSource: MetaActionSource;
   }
 ) => {
   if (!email) return;
 
   const pixelId = process.env.META_PIXEL_ID;
   const accessToken = process.env.META_CAPI_ACCESS_TOKEN;
-  
   if (!pixelId || !accessToken) {
     console.warn("Meta CAPI tracking skipped: Pixel ID or Access Token is missing.");
     return;
@@ -37,26 +56,24 @@ export const sendMetaCapiRegistration = async (
     const userData = new UserData()
       .setEmails([email])
       .setExternalId(uid)
-      .setClientIpAddress(extraData?.clientIp ?? "")
-      .setClientUserAgent(extraData?.userAgent ?? "")
-      .setFbc(extraData?.fbc ?? "")
-      .setFbp(extraData?.fbp ?? "");
+      .setClientIpAddress(extraData.clientIp ?? "")
+      .setClientUserAgent(extraData.userAgent ?? "")
+      .setFbc(extraData.fbc ?? "")
+      .setFbp(extraData.fbp ?? "");
 
-    if (extraData?.leadId) {
+    if (extraData.leadId) {
       userData.setLeadId(extraData.leadId);
     }
 
-    const isCrmEvent = !!extraData?.leadId;
-    const eventName = isCrmEvent ? "CompleteRegistration" : "CompleteRegistration";
-    const actionSource = isCrmEvent ? "system_generated" : "website";
+    const isCrmEvent = extraData.actionSource === "system_generated";
 
     const serverEvent = new ServerEvent()
-      .setEventName(eventName)
+      .setEventName("CompleteRegistration")
       .setEventTime(Math.floor(Date.now() / 1000))
       .setEventSourceUrl("https://linguil.app")
       .setUserData(userData)
-      .setEventId(uid) // Use UID for deduplication
-      .setActionSource(actionSource);
+      .setEventId(extraData.eventId)
+      .setActionSource(extraData.actionSource);
 
     // For CRM events, add the required custom_data fields.
     if (isCrmEvent) {
@@ -66,42 +83,62 @@ export const sendMetaCapiRegistration = async (
       } as any); // Use `as any` to override outdated SDK types.
     }
 
-    const eventsData = [serverEvent];
-    const eventRequest = new EventRequest(accessToken, pixelId).setEvents(eventsData);
-    
-    const response = await eventRequest.execute();
-    console.log(`Successfully sent ${eventName} event to Meta CAPI.`);
-    return response;
+    const response = await new EventRequest(accessToken, pixelId)
+      .setEvents([serverEvent])
+      .execute();
 
+    console.log("Meta CAPI registration dispatched", {
+      sender: isCrmEvent ? "firestore-crm" : "web",
+      eventId: extraData.eventId,
+      actionSource: extraData.actionSource,
+      hasLeadId: Boolean(extraData.leadId),
+      hasFbc: Boolean(extraData.fbc),
+      hasFbp: Boolean(extraData.fbp),
+      hasClientIp: Boolean(extraData.clientIp),
+      hasUserAgent: Boolean(extraData.userAgent),
+    });
+
+    return response;
   } catch (error) {
     console.error("Failed to post Meta CAPI track request:", error);
-    const typedError = error as { response?: { data: any } };
-    if (typedError.response?.data) {
-      console.error("Meta CAPI Error Body:", JSON.stringify(typedError.response.data, null, 2));
-    }
     return;
   }
 };
 
+const persistRegistrationTracking = async (
+  uid: string,
+  context: RegistrationTrackingContext
+) => {
+  const userDocRef = db.collection("users").doc(uid);
+  const userDoc = await userDocRef.get();
+
+  if (!userDoc.exists || !userDoc.data()?.email) {
+    throw new Error(`Cannot persist registration tracking before users/${uid} has an email.`);
+  }
+
+  const eventId = registrationEventId(uid);
+
+  await userDocRef.set(
+    {
+      metaLeadId: context.leadId ?? null,
+      fbc: context.fbc ?? null,
+      fbp: context.fbp ?? null,
+      clientIp: context.clientIp ?? null,
+      userAgent: context.userAgent ?? null,
+      metaCapiRegistrationEventId: eventId,
+      metaCapiRegistrationReadyAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+
+  return eventId;
+};
+
 // Internal function to set up a new user's documents and Stripe customer.
-const setupNewUser = async (user: admin.auth.UserRecord, extraData?: { leadId?: string, fbc?: string, fbp?: string, clientIp?: string, userAgent?: string }) => {
+const setupNewUser = async (user: admin.auth.UserRecord) => {
   const userPublicDocRef = db.collection("users_public").doc(user.uid);
   const userDocRef = db.collection("users").doc(user.uid);
   const doc = await userPublicDocRef.get();
-
-  // Merge tracking fields if supplied.
-  if (extraData) {
-    const dataToSet: any = {};
-    if (extraData.leadId) dataToSet.metaLeadId = extraData.leadId;
-    if (extraData.fbc) dataToSet.fbc = extraData.fbc;
-    if (extraData.fbp) dataToSet.fbp = extraData.fbp;
-    if (extraData.clientIp) dataToSet.clientIp = extraData.clientIp;
-    if (extraData.userAgent) dataToSet.userAgent = extraData.userAgent;
-
-    if (Object.keys(dataToSet).length > 0) {
-      await userDocRef.set(dataToSet, { merge: true });
-    }
-  }
 
   // Only proceed if the user's public document does not already exist.
   if (!doc.exists) {
@@ -195,15 +232,21 @@ export const createUserAccount = onRequest(
 
         const fbc = fbcBody || req.cookies?.["_fbc"];
         const fbp = fbpBody || req.cookies?.["_fbp"];
-        const clientIp = req.ip;
-        const userAgent = req.headers["user-agent"] as string;
-
+        const clientIp = getClientIp(req);
+        const userAgent = req.headers["user-agent"] as string | undefined;
 
         // Manually call setupNewUser to ensure the displayName is captured correctly.
-        await setupNewUser(userRecord, { leadId, fbc, fbp, clientIp, userAgent });
+        await setupNewUser(userRecord);
+
+        const trackingContext = { leadId, fbc, fbp, clientIp, userAgent };
+        const eventId = await persistRegistrationTracking(userRecord.uid, trackingContext);
 
         // Trigger CAPI event with full request context.
-        sendMetaCapiRegistration(userRecord.uid, userRecord.email, { fbc, fbp, clientIp, userAgent, leadId }).catch(console.error);
+        void sendMetaCapiRegistration(userRecord.uid, userRecord.email, {
+          ...trackingContext,
+          eventId,
+          actionSource: "website",
+        });
 
         // Generate a custom token for the client to use for a reliable sign-in.
         const customToken = await admin.auth().createCustomToken(userRecord.uid);
@@ -247,20 +290,17 @@ export const trackSocialRegistration = onCall(
     const clientIp = request.rawRequest.ip;
     const userAgent = request.rawRequest.headers["user-agent"];
 
-    const dataToSet: any = {};
-    if (leadId) dataToSet.metaLeadId = leadId;
-    if (fbc) dataToSet.fbc = fbc;
-    if (fbp) dataToSet.fbp = fbp;
-    if (clientIp) dataToSet.clientIp = clientIp;
-    if (userAgent) dataToSet.userAgent = userAgent;
+    const authUser = await admin.auth().getUser(uid);
+    await setupNewUser(authUser);
 
-    if (Object.keys(dataToSet).length > 0) {
-      const userDocRef = db.collection("users").doc(uid);
-      // Update the user document with the leadId and tracking codes.
-      await userDocRef.set(dataToSet, { merge: true });
-    }
+    const trackingContext = { leadId, fbc, fbp, clientIp, userAgent };
+    const eventId = await persistRegistrationTracking(uid, trackingContext);
 
-    await sendMetaCapiRegistration(uid, email, { fbc, fbp, clientIp, userAgent, leadId });
+    await sendMetaCapiRegistration(uid, email, {
+      ...trackingContext,
+      eventId,
+      actionSource: "website",
+    });
 
     return { success: true };
   }

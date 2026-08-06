@@ -3,33 +3,6 @@ import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/fire
 import { db } from "./init";
 import { sendMetaCapiRegistration } from "./user-management";
 
-// Firestore trigger that sends a Meta CAPI CRM Lead event when a new 'users' document is created.
-export const onUserDocumentCreate = onDocumentCreated({ document: "users/{userId}", region: "us-central1", secrets: ["META_CAPI_ACCESS_TOKEN", "META_PIXEL_ID"] }, async (event) => {
-  try {
-    if (!event.data) return;
-
-    const data = event.data.data();
-    const userId = event.params.userId;
-
-    // Check if the essential data is present.
-    if (!data.email || !userId) {
-      console.warn(`onUserDocumentCreate trigger for user ${userId} missing email.`);
-      return;
-    }
-
-    await sendMetaCapiRegistration(userId, data.email, {
-      leadId: data.metaLeadId, 
-      fbc: data.fbc,
-      fbp: data.fbp,
-      clientIp: data.clientIp,
-      userAgent: data.userAgent
-    });
-
-  } catch (err) {
-    console.error(`Error in onUserDocumentCreate for user ${event.params.userId}:`, err);
-  }
-});
-
 // Firestore trigger that updates a user's aggregated scores when a new daily score is created.
 export const onDailyScoreCreate = onDocumentCreated({ document: "users/{userId}/dailyScores/{dailyScoreId}", region: "us-central1" }, async (event) => {
   try {
@@ -97,27 +70,28 @@ export const onUserUpdate = onDocumentUpdated(
       const afterData = event.data.after.data();
       const userId = event.params.userId;
 
-      const leadAttached =
-        !beforeData?.metaLeadId && Boolean(afterData?.metaLeadId);
+      const registrationReady =
+        !beforeData?.metaCapiRegistrationReady &&
+        Boolean(afterData?.metaCapiRegistrationReady);
 
-      if (leadAttached && afterData?.email) {
-        console.log("Firestore CRM CAPI dispatched", {
-          uid: userId,
-          hasLeadId: Boolean(afterData.metaLeadId),
+      if (
+        registrationReady &&
+        afterData?.email &&
+        afterData?.metaCapiRegistrationEventId
+      ) {
+        await sendMetaCapiRegistration(userId, afterData.email, {
+          leadId: afterData.metaLeadId ?? undefined,
+          fbc: afterData.fbc ?? undefined,
+          fbp: afterData.fbp ?? undefined,
+          clientIp: afterData.clientIp ?? undefined,
+          userAgent: afterData.userAgent ?? undefined,
+          eventId: afterData.metaCapiRegistrationEventId,
           actionSource: "system_generated",
         });
-        const response = await sendMetaCapiRegistration(userId, afterData.email, {
-          leadId: afterData.metaLeadId,
-          fbc: afterData.fbc,
-          fbp: afterData.fbp,
-          clientIp: afterData.clientIp,
-          userAgent: afterData.userAgent,
-        });
-        console.log("Meta CAPI Response:", response);
       }
 
-      // Exit if the 'hasPaid' status hasn't changed or there's no 'after' data.
-      if (beforeData?.hasPaid === afterData?.hasPaid || !afterData) {
+      // Exit if the 'hasPaid' status has not changed.
+      if (beforeData?.hasPaid === afterData?.hasPaid) {
         return;
       }
       
