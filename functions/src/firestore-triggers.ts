@@ -3,49 +3,75 @@ import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/fire
 import { db } from "./init";
 import { sendMetaCapiRegistration } from "./user-management";
 
+// Helper function to introduce a delay.
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 // Firestore trigger that updates a user's aggregated scores when a new daily score is created.
 export const onDailyScoreCreate = onDocumentCreated({ document: "users/{userId}/dailyScores/{dailyScoreId}", region: "us-central1" }, async (event) => {
   try {
     // Get the user ID from the event parameters.
     const userId = event.params.userId;
     if (!userId) return;
-    
-    // Get a reference to the user's daily scores collection.
-    const dailyScoresCollection = db.collection("users").doc(userId).collection("dailyScores");
-    const snapshot = await dailyScoresCollection.get();
 
-    // If there are no daily scores, reset the public scores.
-    if (snapshot.empty) {
-      await db.collection("users_public").doc(userId).update({
-        "scores.perfectScores": 0,
-        "scores.totalAnswered": 0,
-        "scores.totalCorrect": 0,
-      });
-      return;
+    const userPublicDocRef = db.collection("users_public").doc(userId);
+    
+    // Retry logic to handle potential race conditions during user creation.
+    const maxRetries = 3;
+    const retryDelay = 2000; // 2 seconds
+
+    for (let i = 0; i < maxRetries; i++) {
+      const userPublicDoc = await userPublicDocRef.get();
+
+      if (userPublicDoc.exists) {
+        // Document found, proceed with score aggregation.
+        const dailyScoresCollection = db.collection("users").doc(userId).collection("dailyScores");
+        const snapshot = await dailyScoresCollection.get();
+
+        // If there are no daily scores, reset the public scores.
+        if (snapshot.empty) {
+          await userPublicDocRef.update({
+            "scores.perfectScores": 0,
+            "scores.totalAnswered": 0,
+            "scores.totalCorrect": 0,
+          });
+          return; // Success
+        }
+
+        // Initialize score counters.
+        let perfectScores = 0;
+        let totalCorrect = 0;
+        const totalAnswered = snapshot.size * 3; // 3 questions per day.
+
+        // Iterate over each daily score to calculate the totals.
+        snapshot.forEach((doc: admin.firestore.QueryDocumentSnapshot) => {
+          const data = doc.data();
+          if (data && typeof data.score === "number") {
+            totalCorrect += data.score;
+            if (data.score === 3) { // A score of 3 is perfect.
+              perfectScores += 1;
+            }
+          }
+        });
+
+        // Update the user's public profile with the new aggregated scores.
+        await userPublicDocRef.update({
+          "scores.perfectScores": perfectScores,
+          "scores.totalAnswered": totalAnswered,
+          "scores.totalCorrect": totalCorrect,
+        });
+        
+        return; // Success, exit the function.
+      }
+
+      // If document not found, wait and then retry.
+      if (i < maxRetries - 1) {
+        console.log(`onDailyScoreCreate: users_public/${userId} not found. Retrying in ${retryDelay / 1000}s...`);
+        await sleep(retryDelay);
+      }
     }
 
-    // Initialize score counters.
-    let perfectScores = 0;
-    let totalCorrect = 0;
-    const totalAnswered = snapshot.size * 3; // 3 questions per day.
-
-    // Iterate over each daily score to calculate the totals.
-    snapshot.forEach((doc: admin.firestore.QueryDocumentSnapshot) => {
-      const data = doc.data();
-      if (data && typeof data.score === "number") {
-        totalCorrect += data.score;
-        if (data.score === 3) { // A score of 3 is perfect.
-          perfectScores += 1;
-        }
-      }
-    });
-
-    // Update the user's public profile with the new aggregated scores.
-    await db.collection("users_public").doc(userId).update({
-      "scores.perfectScores": perfectScores,
-      "scores.totalAnswered": totalAnswered,
-      "scores.totalCorrect": totalCorrect,
-    });
+    // If the loop completes, the document was never found.
+    console.warn(`onDailyScoreCreate: users_public/${userId} still not found after ${maxRetries} retries.`);
 
   } catch(err) {
     // Log any errors that occur.

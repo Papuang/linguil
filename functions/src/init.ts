@@ -5,3 +5,4 @@ admin.initializeApp();
 
 // Export initialized services for use in other modules.
 export const db = admin.firestore();
+db.settings({ ignoreUndefinedProperties: true });

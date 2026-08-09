@@ -84,6 +84,8 @@ const nextConfig = {
     // Custom tsconfig.json file for the Next.js build.
     tsconfigPath: './tsconfig.next.json',
   },
+  // Prevents server-side packages from being bundled with the client-side code.
+  serverExternalPackages: ['firebase-admin', 'discord.js', 'node-cron'],
   turbopack: {},
   allowedDevOrigins: ['*.cloudworkstations.dev', '9000-firebase-studio-1755218936202.cluster-fbfjltn375c6wqxlhoehbz44sk.cloudworkstations.dev'],
   // Optimizes images to modern formats like AVIF and WebP.
