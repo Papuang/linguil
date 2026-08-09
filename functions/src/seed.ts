@@ -262,7 +262,7 @@ export const seedDailyWord = onSchedule(
           });
 
           session.sendRealtimeInput({
-            text: `Say the word "${wordToSay}" in ${effectiveLanguage}. Output ONLY the audio of the word itself. No greeting, no explanation.`
+            text: `Task: Generate audio output. Language: ${effectiveLanguage}. Instructions: Say only the word following "Content:". Do not add any introductory text, context, explanation, conversation, or any other words. Content: \"${wordToSay}\".`
           });
 
           await new Promise(resolve => setTimeout(resolve, 4000));
